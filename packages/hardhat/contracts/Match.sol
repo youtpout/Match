@@ -51,6 +51,7 @@ contract MatchContract {
   error InsufficientAmount();
   error OrderInactive();
   error OverflowPrice();
+  error IncorrectPrice();
 
   // Constructor: Called once on contract deployment
   // Check packages/hardhat/deploy/00_deploy_your_contract.ts
@@ -187,7 +188,9 @@ contract MatchContract {
     }
     uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
     uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
-    require(priceByTokenA > priceByTokenB);
+    if (priceByTokenA < priceByTokenB) {
+      revert IncorrectPrice();
+    }
 
     uint128 amountTransfered = orderA.amountToBuyRest;
     if (orderA.amountToBuyRest > orderB.amountToSellRest) {
@@ -215,9 +218,26 @@ contract MatchContract {
     orderB.amountToBuyRest -= amountSoldTransfered;
     if (orderA.amountToBuyRest == 0 || orderA.amountToSellRest == 0) {
       orderA.status = MatchLibrary.OrderStatus.Sold;
+      // reward the bot
+      usersBalances[msg.sender][MatchLibrary.native] += orderA.reward;
+      orderA.reward = 0;
+    } else {
+      // reward the bot from the part completed
+      uint88 rewardToBot = uint88((orderA.reward * amountTransfered) / orderA.amountToBuy);
+      orderA.reward -= rewardToBot;
+      usersBalances[msg.sender][MatchLibrary.native] += rewardToBot;
     }
+
     if (orderB.amountToSellRest == 0 || orderB.amountToBuyRest == 0) {
       orderB.status = MatchLibrary.OrderStatus.Sold;
+      // reward the bot
+      usersBalances[msg.sender][MatchLibrary.native] += orderB.reward;
+      orderB.reward = 0;
+    } else {
+      // reward the bot from the part completed
+      uint88 rewardToBot = uint88((orderB.reward * amountTransfered) / orderB.amountToSell);
+      orderB.reward -= rewardToBot;
+      usersBalances[msg.sender][MatchLibrary.native] += rewardToBot;
     }
 
     emit Match(traderA, tokenToSell, tokenToBuy, traderB, indexOrderA, indexOrderB, orderA, orderB);
