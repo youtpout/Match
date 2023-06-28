@@ -29,7 +29,7 @@ contract Match {
 
   error NotTheOwner();
   error NoAction();
-  error UnknowAction();
+  error UnknownAction();
   error AddressZero();
   error NoAmount();
   error RewardTooLow();
@@ -61,55 +61,85 @@ contract Match {
     do {
       MatchLibrary.Action memory action = actions[i];
       if (action.actionType == MatchLibrary.ActionType.Deposit) {
-        (uint256 amount, address token) = abi.decode(action.data, (uint256, address));
-        uint256 depositedAmount;
-        if (token == MatchLibrary.native) {
-          nativeAmount -= amount;
-          usersBalances[token][msg.sender] += amount;
-          depositedAmount = amount;
-        } else {
-          uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-          TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
-          uint256 balance = balanceBefore - IERC20(token).balanceOf(address(this));
-          // get the smaller for tax or reflection token
-          depositedAmount = balance > amount ? amount : balance;
-          usersBalances[token][msg.sender] += depositedAmount;
-        }
-        emit Deposit(msg.sender, token, amount, depositedAmount);
+        nativeAmount -= _deposit(action);
       } else if (action.actionType == MatchLibrary.ActionType.Sell) {
-        (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi
-          .decode(action.data, (address, address, uint88, uint128, uint128));
-        if (tokenToSell == address(0) || tokenToBuy == address(0)) {
-          revert AddressZero();
-        }
-        if (amountToBuy == 0 || amountToSell == 0) {
-          revert NoAmount();
-        }
-        if (reward < minReward) {
-          revert RewardTooLow();
-        }
-
-        nativeAmount -= reward;
-        // 10% commission
-        uint88 rewardToBank = (reward * 10) / 100;
-        uint88 rewardToBot = reward - rewardToBank;
-        usersBalances[MatchLibrary.native][bank] += rewardToBank;
-
-        MatchLibrary.Order memory order = MatchLibrary.Order(
-          MatchLibrary.OrderStatus.Active,
-          msg.sender,
-          rewardToBot,
-          amountToSell,
-          amountToBuy,
-          amountToSell,
-          amountToBuy
-        );
-        // store the orders
-        orders[tokenToSell][tokenToBuy].push(order);
-
-        emit AddOrder(msg.sender, tokenToSell, tokenToBuy, order);
+        nativeAmount -= _addOrder(action);
+      } else if (action.actionType == MatchLibrary.ActionType.Match) {} else if (
+        action.actionType == MatchLibrary.ActionType.Withdraw
+      ) {} else {
+        revert UnknownAction();
       }
       i++;
     } while (i < actions.length);
+  }
+
+  function _deposit(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
+    (uint256 amount, address token) = abi.decode(action.data, (uint256, address));
+    uint256 depositedAmount;
+    if (token == MatchLibrary.native) {
+      removeAmount = amount;
+      usersBalances[token][msg.sender] += amount;
+      depositedAmount = amount;
+    } else {
+      uint256 balanceBefore = IERC20(token).balanceOf(address(this));
+      TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
+      uint256 balance = balanceBefore - IERC20(token).balanceOf(address(this));
+      // get the smaller for tax or reflection token
+      depositedAmount = balance > amount ? amount : balance;
+      usersBalances[token][msg.sender] += depositedAmount;
+    }
+    emit Deposit(msg.sender, token, amount, depositedAmount);
+  }
+
+  function _addOrder(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
+    (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi.decode(
+      action.data,
+      (address, address, uint88, uint128, uint128)
+    );
+    if (tokenToSell == address(0) || tokenToBuy == address(0)) {
+      revert AddressZero();
+    }
+    if (amountToBuy == 0 || amountToSell == 0) {
+      revert NoAmount();
+    }
+    if (reward < minReward) {
+      revert RewardTooLow();
+    }
+
+    removeAmount = reward;
+    // 10% commission
+    uint88 rewardToBank = (reward * 10) / 100;
+    uint88 rewardToBot = reward - rewardToBank;
+    usersBalances[MatchLibrary.native][bank] += rewardToBank;
+
+    MatchLibrary.Order memory order = MatchLibrary.Order(
+      MatchLibrary.OrderStatus.Active,
+      msg.sender,
+      rewardToBot,
+      amountToSell,
+      amountToBuy,
+      amountToSell,
+      amountToBuy
+    );
+    // store the orders
+    orders[tokenToSell][tokenToBuy].push(order);
+
+    emit AddOrder(msg.sender, tokenToSell, tokenToBuy, order);
+  }
+
+  function _match(MatchLibrary.Action memory action) private {
+    (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi.decode(
+      action.data,
+      (address, address, uint88, uint128, uint128)
+    );
+    if (tokenToSell == address(0) || tokenToBuy == address(0)) {
+      revert AddressZero();
+    }
+    if (amountToBuy == 0 || amountToSell == 0) {
+      revert NoAmount();
+    }
+    if (reward < minReward) {
+      revert RewardTooLow();
+    }
   }
 }
