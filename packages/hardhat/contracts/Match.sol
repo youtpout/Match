@@ -52,6 +52,22 @@ contract Match {
     _;
   }
 
+  function changeBank(address newBank) external isOwner {
+    require(newBank != address(0));
+    bank = newBank;
+  }
+
+  function transferOwnership(address newOwner) external isOwner {
+    require(newOwner != address(0));
+    owner = newOwner;
+  }
+
+  function withdraw() external isOwner {
+    uint256 amount = usersBalances[MatchLibrary.native][bank];
+    usersBalances[MatchLibrary.native][bank] -= amount;
+    TransferHelper.safeTransferETH(bank, amount);
+  }
+
   function execute(MatchLibrary.Action[] calldata actions) external payable {
     if (actions.length == 0) {
       revert NoAction();
@@ -71,6 +87,10 @@ contract Match {
       }
       i++;
     } while (i < actions.length);
+
+    if (nativeAmount > 0) {
+      TransferHelper.safeTransferETH(msg.sender, nativeAmount);
+    }
   }
 
   function _deposit(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
