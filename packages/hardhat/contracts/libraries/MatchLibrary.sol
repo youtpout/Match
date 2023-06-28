@@ -10,15 +10,15 @@ library MatchLibrary {
     Sell,
     Match,
     Withdraw,
-    WithdrawTo
+    WithdrawTo,
+    Cancel
   }
 
   enum OrderStatus {
     None,
     Active,
     Canceled,
-    Sold,
-    SoldAndCanceled
+    Sold
   }
 
   struct Order {

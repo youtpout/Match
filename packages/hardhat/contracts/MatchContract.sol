@@ -41,6 +41,13 @@ contract MatchContract {
     MatchLibrary.Order orderB
   );
   event Withdraw(address indexed user, address indexed to, uint256 amount);
+  event Cancel(
+    address indexed user,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    uint256 indexOrder,
+    MatchLibrary.Order order
+  );
 
   error NotTheOwner();
   error NoAction();
@@ -54,6 +61,7 @@ contract MatchContract {
   error PriceTooHigh();
   error OrderAIncorrectlyFulfilled();
   error OrderBIncorrectlyFulfilled();
+  error NotOwner();
 
   error TransferFailed();
   error ETHTransferFailed();
@@ -111,6 +119,8 @@ contract MatchContract {
         _withdraw(action);
       } else if (action.actionType == MatchLibrary.ActionType.WithdrawTo) {
         _withdrawTo(action);
+      } else if (action.actionType == MatchLibrary.ActionType.Cancel) {
+        _cancel(action);
       } else {
         revert UnknownAction();
       }
@@ -256,9 +266,9 @@ contract MatchContract {
         // if they rest some token after order completed we give 1/3 to bot 1/3 to platform, the user keep the rest
         uint128 restPart = orderB.amountToSellRest / 3;
         uint128 amountDeduct = restPart * 2;
-        usersBalances[traderB][tokenToSell] -= amountDeduct;
-        usersBalances[msg.sender][tokenToSell] += restPart;
-        usersBalances[bank][tokenToSell] += restPart;
+        usersBalances[traderB][tokenToBuy] -= amountDeduct;
+        usersBalances[msg.sender][tokenToBuy] += restPart;
+        usersBalances[bank][tokenToBuy] += restPart;
         orderB.amountToSellRest -= amountDeduct;
       }
     } else if (orderB.amountToSellRest == 0 && orderB.amountToBuyRest > 0) {
@@ -293,5 +303,23 @@ contract MatchContract {
     usersBalances[msg.sender][token] -= amount;
     TransferHelper.safeTransfer(token, to, amount);
     emit Withdraw(msg.sender, to, amount);
+  }
+
+  function _cancel(MatchLibrary.Action memory action) private {
+    (address tokenToSell, address tokenToBuy, uint256 indexOrder) = abi.decode(
+      action.data,
+      (address, address, uint256)
+    );
+    MatchLibrary.Order storage order = orders[tokenToSell][tokenToBuy][indexOrder];
+    if (order.status != MatchLibrary.OrderStatus.Active) {
+      revert OrderInactive();
+    }
+    if (order.trader != msg.sender) {
+      revert NotOwner();
+    }
+    order.status = MatchLibrary.OrderStatus.Canceled;
+    usersBalances[msg.sender][MatchLibrary.native] += order.reward;
+    order.reward = 0;
+    emit Cancel(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
   }
 }
