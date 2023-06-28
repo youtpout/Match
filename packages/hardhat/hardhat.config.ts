@@ -24,6 +24,13 @@ const config: HardhatUserConfig = {
         // https://docs.soliditylang.org/en/latest/using-the-compiler.html#optimizer-options
         runs: 200,
       },
+      viaIR: true,
+      metadata: {
+        // do not include the metadata hash, since this is machine dependent
+        // and we want all generated code to be deterministic
+        // https://docs.soliditylang.org/en/v0.8.20/metadata.html
+        bytecodeHash: "none",
+      },
     },
   },
   defaultNetwork: "localhost",

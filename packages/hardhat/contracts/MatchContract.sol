@@ -51,7 +51,11 @@ contract MatchContract {
   error InsufficientAmount();
   error OrderInactive();
   error OverflowPrice();
-  error IncorrectPrice();
+  error PriceTooHigh();
+
+  error TransferFailed();
+  error ETHTransferFailed();
+  error TransferFromFailed();
 
   // Constructor: Called once on contract deployment
   // Check packages/hardhat/deploy/00_deploy_your_contract.ts
@@ -188,15 +192,16 @@ contract MatchContract {
     }
     uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
     uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
-    if (priceByTokenA < priceByTokenB) {
-      revert IncorrectPrice();
+    if (priceByTokenA > priceByTokenB) {
+      revert PriceTooHigh();
     }
 
     uint128 amountTransfered = orderA.amountToBuyRest;
     if (orderA.amountToBuyRest > orderB.amountToSellRest) {
       amountTransfered = orderB.amountToSellRest;
     }
-    uint256 sold = (amountTransfered * priceByTokenA) / PRICE_DECIMALS;
+    // we sold as order B price
+    uint256 sold = (amountTransfered * orderB.amountToBuy) / orderB.amountToSell;
     if (sold > type(uint128).max) {
       revert OverflowPrice();
     }
@@ -216,11 +221,28 @@ contract MatchContract {
 
     orderA.amountToSellRest -= amountSoldTransfered;
     orderB.amountToBuyRest -= amountSoldTransfered;
+
     if (orderA.amountToBuyRest == 0 || orderA.amountToSellRest == 0) {
       orderA.status = MatchLibrary.OrderStatus.Sold;
       // reward the bot
       usersBalances[msg.sender][MatchLibrary.native] += orderA.reward;
       orderA.reward = 0;
+      if (orderA.amountToBuyRest > 2) {
+        // if they rest some token after order completed we give 1/3 to bot 1/3 to platform
+        uint128 restPart = orderA.amountToBuyRest / 3;
+        uint128 amountDeduct = restPart * 2;
+        usersBalances[traderA][tokenToBuy] -= amountDeduct;
+        usersBalances[msg.sender][tokenToBuy] += restPart;
+        usersBalances[bank][tokenToBuy] += restPart;
+        orderA.amountToBuyRest -= amountDeduct;
+      } else if (orderA.amountToSellRest > 2) {
+        uint128 restPart = orderA.amountToSellRest / 3;
+        uint128 amountDeduct = restPart * 2;
+        usersBalances[traderA][tokenToSell] -= amountDeduct;
+        usersBalances[msg.sender][tokenToSell] += restPart;
+        usersBalances[bank][tokenToSell] += restPart;
+        orderA.amountToSellRest -= amountDeduct;
+      }
     } else {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderA.reward * amountTransfered) / orderA.amountToBuy);
@@ -233,6 +255,22 @@ contract MatchContract {
       // reward the bot
       usersBalances[msg.sender][MatchLibrary.native] += orderB.reward;
       orderB.reward = 0;
+      if (orderB.amountToBuyRest > 2) {
+        // if they rest some token after order completed we give 1/3 to bot 1/3 to platform
+        uint128 restPart = orderB.amountToBuyRest / 3;
+        uint128 amountDeduct = restPart * 2;
+        usersBalances[traderB][tokenToBuy] -= amountDeduct;
+        usersBalances[msg.sender][tokenToBuy] += restPart;
+        usersBalances[bank][tokenToBuy] += restPart;
+        orderB.amountToBuyRest -= amountDeduct;
+      } else if (orderB.amountToSellRest > 2) {
+        uint128 restPart = orderB.amountToSellRest / 3;
+        uint128 amountDeduct = restPart * 2;
+        usersBalances[traderB][tokenToSell] -= amountDeduct;
+        usersBalances[msg.sender][tokenToSell] += restPart;
+        usersBalances[bank][tokenToSell] += restPart;
+        orderB.amountToSellRest -= amountDeduct;
+      }
     } else {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderB.reward * amountTransfered) / orderB.amountToSell);
