@@ -10,20 +10,36 @@ import "./interfaces/IERC20.sol";
 contract Match {
   // State Variables
   address public owner;
+  address public bank;
+
+  uint88 public minReward;
+
   /// @dev first address is the user, second address is the token, uint256 is the user balance
   mapping(address => mapping(address => uint256)) usersBalances;
   /// @dev first address is the token to sell, second address is the token to buy, order is the order information for thes tokens
   mapping(address => mapping(address => MatchLibrary.Order[])) orders;
 
-  event Deposit(address indexed user, address token, uint256 desiredAmount, uint256 depositedAmount);
+  event Deposit(address indexed user, address indexed token, uint256 desiredAmount, uint256 depositedAmount);
+  event AddOrder(
+    address indexed user,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    MatchLibrary.Order order
+  );
+
   error NotTheOwner();
   error NoAction();
   error UnknowAction();
+  error AddressZero();
+  error NoAmount();
+  error RewardTooLow();
 
   // Constructor: Called once on contract deployment
   // Check packages/hardhat/deploy/00_deploy_your_contract.ts
-  constructor(address _owner) {
+  constructor(address _owner, address _bank, uint88 _minReward) {
     owner = _owner;
+    bank = _bank;
+    minReward = _minReward;
   }
 
   // Modifier: used to define a set of rules that must be met before or after a function is executed
@@ -60,6 +76,38 @@ contract Match {
           usersBalances[token][msg.sender] += depositedAmount;
         }
         emit Deposit(msg.sender, token, amount, depositedAmount);
+      } else if (action.actionType == MatchLibrary.ActionType.Sell) {
+        (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi
+          .decode(action.data, (address, address, uint88, uint128, uint128));
+        if (tokenToSell == address(0) || tokenToBuy == address(0)) {
+          revert AddressZero();
+        }
+        if (amountToBuy == 0 || amountToSell == 0) {
+          revert NoAmount();
+        }
+        if (reward < minReward) {
+          revert RewardTooLow();
+        }
+
+        nativeAmount -= reward;
+        // 10% commission
+        uint88 rewardToBank = (reward * 10) / 100;
+        uint88 rewardToBot = reward - rewardToBank;
+        usersBalances[MatchLibrary.native][bank] += rewardToBank;
+
+        MatchLibrary.Order memory order = MatchLibrary.Order(
+          MatchLibrary.OrderStatus.Active,
+          msg.sender,
+          rewardToBot,
+          amountToSell,
+          amountToBuy,
+          amountToSell,
+          amountToBuy
+        );
+        // store the orders
+        orders[tokenToSell][tokenToBuy].push(order);
+
+        emit AddOrder(msg.sender, tokenToSell, tokenToBuy, order);
       }
       i++;
     } while (i < actions.length);
