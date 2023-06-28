@@ -9,7 +9,8 @@ library MatchLibrary {
     Deposit,
     Sell,
     Match,
-    Withdraw
+    Withdraw,
+    WithdrawTo
   }
 
   enum OrderStatus {
@@ -26,8 +27,8 @@ library MatchLibrary {
     uint88 reward;
     uint128 amountToSell;
     uint128 amountToBuy;
-    uint128 amountToSellCompleted;
-    uint128 amountToBuyCompleted;
+    uint128 amountToSellRest;
+    uint128 amountToBuyRest;
   }
 
   struct Action{

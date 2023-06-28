@@ -7,13 +7,16 @@ import "./libraries/MatchLibrary.sol";
 import "./libraries/TransferHelper.sol";
 import "./interfaces/IERC20.sol";
 
-contract Match {
+contract MatchContract {
   // State Variables
   address public owner;
   address public bank;
 
   uint88 public minReward;
 
+  uint256 public constant PRICE_DECIMALS = 1e18;
+  /// @notice Price precision /100, 0.01%
+  uint256 public constant PRICE_PRECISION = 1e2;
   /// @dev first address is the user, second address is the token, uint256 is the user balance
   mapping(address => mapping(address => uint256)) usersBalances;
   /// @dev first address is the token to sell, second address is the token to buy, order is the order information for thes tokens
@@ -24,8 +27,20 @@ contract Match {
     address indexed user,
     address indexed tokenToSell,
     address indexed tokenToBuy,
+    uint256 indexOrder,
     MatchLibrary.Order order
   );
+  event Match(
+    address indexed userA,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    address userB,
+    uint256 indexOrderA,
+    uint256 indexOrderB,
+    MatchLibrary.Order orderA,
+    MatchLibrary.Order orderB
+  );
+  event Withdraw(address indexed user, address indexed to, uint256 amount);
 
   error NotTheOwner();
   error NoAction();
@@ -33,6 +48,9 @@ contract Match {
   error AddressZero();
   error NoAmount();
   error RewardTooLow();
+  error InsufficientAmount();
+  error OrderInactive();
+  error OverflowPrice();
 
   // Constructor: Called once on contract deployment
   // Check packages/hardhat/deploy/00_deploy_your_contract.ts
@@ -63,8 +81,8 @@ contract Match {
   }
 
   function withdraw() external isOwner {
-    uint256 amount = usersBalances[MatchLibrary.native][bank];
-    usersBalances[MatchLibrary.native][bank] -= amount;
+    uint256 amount = usersBalances[bank][MatchLibrary.native];
+    usersBalances[bank][MatchLibrary.native] -= amount;
     TransferHelper.safeTransferETH(bank, amount);
   }
 
@@ -80,9 +98,13 @@ contract Match {
         nativeAmount -= _deposit(action);
       } else if (action.actionType == MatchLibrary.ActionType.Sell) {
         nativeAmount -= _addOrder(action);
-      } else if (action.actionType == MatchLibrary.ActionType.Match) {} else if (
-        action.actionType == MatchLibrary.ActionType.Withdraw
-      ) {} else {
+      } else if (action.actionType == MatchLibrary.ActionType.Match) {
+        _match(action);
+      } else if (action.actionType == MatchLibrary.ActionType.Withdraw) {
+        _withdraw(action);
+      } else if (action.actionType == MatchLibrary.ActionType.WithdrawTo) {
+        _withdrawTo(action);
+      } else {
         revert UnknownAction();
       }
       i++;
@@ -94,19 +116,19 @@ contract Match {
   }
 
   function _deposit(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
-    (uint256 amount, address token) = abi.decode(action.data, (uint256, address));
+    (address token, uint256 amount) = abi.decode(action.data, (address, uint256));
     uint256 depositedAmount;
     if (token == MatchLibrary.native) {
       removeAmount = amount;
-      usersBalances[token][msg.sender] += amount;
+      usersBalances[msg.sender][token] += amount;
       depositedAmount = amount;
     } else {
       uint256 balanceBefore = IERC20(token).balanceOf(address(this));
       TransferHelper.safeTransferFrom(token, msg.sender, address(this), amount);
-      uint256 balance = balanceBefore - IERC20(token).balanceOf(address(this));
+      uint256 balance = IERC20(token).balanceOf(address(this)) - balanceBefore;
       // get the smaller for tax or reflection token
       depositedAmount = balance > amount ? amount : balance;
-      usersBalances[token][msg.sender] += depositedAmount;
+      usersBalances[msg.sender][token] += depositedAmount;
     }
     emit Deposit(msg.sender, token, amount, depositedAmount);
   }
@@ -130,7 +152,9 @@ contract Match {
     // 10% commission
     uint88 rewardToBank = (reward * 10) / 100;
     uint88 rewardToBot = reward - rewardToBank;
-    usersBalances[MatchLibrary.native][bank] += rewardToBank;
+    usersBalances[bank][MatchLibrary.native] += rewardToBank;
+
+    uint256 indexOrder = orders[tokenToSell][tokenToBuy].length;
 
     MatchLibrary.Order memory order = MatchLibrary.Order(
       MatchLibrary.OrderStatus.Active,
@@ -144,22 +168,80 @@ contract Match {
     // store the orders
     orders[tokenToSell][tokenToBuy].push(order);
 
-    emit AddOrder(msg.sender, tokenToSell, tokenToBuy, order);
+    emit AddOrder(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
   }
 
   function _match(MatchLibrary.Action memory action) private {
-    (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi.decode(
+    (address tokenToSell, address tokenToBuy, uint256 indexOrderA, uint256 indexOrderB) = abi.decode(
       action.data,
-      (address, address, uint88, uint128, uint128)
+      (address, address, uint256, uint256)
     );
     if (tokenToSell == address(0) || tokenToBuy == address(0)) {
       revert AddressZero();
     }
-    if (amountToBuy == 0 || amountToSell == 0) {
-      revert NoAmount();
+    MatchLibrary.Order storage orderA = orders[tokenToSell][tokenToBuy][indexOrderA];
+    // the matching order has token inversed
+    MatchLibrary.Order storage orderB = orders[tokenToBuy][tokenToSell][indexOrderB];
+    if (orderA.status != MatchLibrary.OrderStatus.Active || orderB.status != MatchLibrary.OrderStatus.Active) {
+      revert OrderInactive();
     }
-    if (reward < minReward) {
-      revert RewardTooLow();
+    uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
+    uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
+    require(priceByTokenA > priceByTokenB);
+
+    uint128 amountTransfered = orderA.amountToBuyRest;
+    if (orderA.amountToBuyRest > orderB.amountToSellRest) {
+      amountTransfered = orderB.amountToSellRest;
     }
+    uint256 sold = (amountTransfered * priceByTokenA) / PRICE_DECIMALS;
+    if (sold > type(uint128).max) {
+      revert OverflowPrice();
+    }
+    uint128 amountSoldTransfered = uint128(sold);
+
+    address traderB = orderB.trader;
+    address traderA = orderA.trader;
+
+    // the token to buy for trader A is the token to sell for trader B
+    usersBalances[traderB][tokenToBuy] -= amountTransfered;
+    usersBalances[traderA][tokenToBuy] += amountTransfered;
+    usersBalances[traderB][tokenToSell] += amountSoldTransfered;
+    usersBalances[traderA][tokenToSell] -= amountSoldTransfered;
+
+    orderA.amountToBuyRest -= amountTransfered;
+    orderB.amountToSellRest -= amountTransfered;
+
+    orderA.amountToSellRest -= amountSoldTransfered;
+    orderB.amountToBuyRest -= amountSoldTransfered;
+    if (orderA.amountToBuyRest == 0 || orderA.amountToSellRest == 0) {
+      orderA.status = MatchLibrary.OrderStatus.Sold;
+    }
+    if (orderB.amountToSellRest == 0 || orderB.amountToBuyRest == 0) {
+      orderB.status = MatchLibrary.OrderStatus.Sold;
+    }
+
+    emit Match(traderA, tokenToSell, tokenToBuy, traderB, indexOrderA, indexOrderB, orderA, orderB);
+  }
+
+  function _withdraw(MatchLibrary.Action memory action) private {
+    (address token, uint256 amount) = abi.decode(action.data, (address, uint256));
+    if (amount > usersBalances[msg.sender][token]) {
+      revert InsufficientAmount();
+    }
+    usersBalances[msg.sender][token] -= amount;
+    TransferHelper.safeTransfer(token, msg.sender, amount);
+    emit Withdraw(msg.sender, msg.sender, amount);
+  }
+
+  /// Usefull for reimbourse an other account/contract
+  /// @param action action data
+  function _withdrawTo(MatchLibrary.Action memory action) private {
+    (address token, address to, uint256 amount) = abi.decode(action.data, (address, address, uint256));
+    if (amount > usersBalances[msg.sender][token]) {
+      revert InsufficientAmount();
+    }
+    usersBalances[msg.sender][token] -= amount;
+    TransferHelper.safeTransfer(token, to, amount);
+    emit Withdraw(msg.sender, to, amount);
   }
 }
