@@ -7,7 +7,7 @@ library MatchLibrary {
   enum ActionType {
     None,
     Deposit,
-    Sell,
+    AddOrder,
     Match,
     Withdraw,
     WithdrawTo,

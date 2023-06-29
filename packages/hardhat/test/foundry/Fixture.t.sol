@@ -4,7 +4,8 @@ pragma solidity ^0.8.17;
 import {Test, Vm} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {MatchContract} from "contracts/MatchContract.sol";
+import {Match} from "contracts/Match.sol";
+import {MatchLibrary} from "contracts/libraries/MatchLibrary.sol";
 
 contract Fixture is Test {
   address public constant uniswapV2Router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -13,7 +14,7 @@ contract Fixture is Test {
   ERC20 public constant bnbToken = ERC20(0xB8c77482e45F1F44dE1745F52C74426C631bDD52);
   ERC20 public constant wEth = ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-  MatchContract public matchContract;
+  Match public matchContract;
 
   address deployer = makeAddr("Deployer");
   address alice = makeAddr("Alice");
@@ -27,6 +28,34 @@ contract Fixture is Test {
   uint256 public constant INITIAL_DEPLOYER_ETH_BALANCE = 7500;
   uint256 public constant INITIAL_ACTOR_USDC_BALANCE = 1000;
 
+  event Transfer(address indexed from, address indexed to, uint256 amount);
+  event Deposit(address indexed user, address indexed token, uint256 desiredAmount, uint256 depositedAmount);
+  event AddOrder(
+    address indexed user,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    uint256 indexOrder,
+    MatchLibrary.Order order
+  );
+  event MatchOrder(
+    address indexed userA,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    address userB,
+    uint256 indexOrderA,
+    uint256 indexOrderB,
+    MatchLibrary.Order orderA,
+    MatchLibrary.Order orderB
+  );
+  event Withdraw(address indexed user, address indexed to, uint256 amount);
+  event Cancel(
+    address indexed user,
+    address indexed tokenToSell,
+    address indexed tokenToBuy,
+    uint256 indexOrder,
+    MatchLibrary.Order order
+  );
+
   function setUp() public virtual {
     vm.createSelectFork(vm.envString("MAINNET"));
     assertEq(block.chainid, 1);
@@ -36,7 +65,7 @@ contract Fixture is Test {
 
     vm.startPrank(deployer);
     // 1e16 0.01 ether
-    matchContract = new MatchContract(alice, daniel, 1e16);
+    matchContract = new Match(alice, daniel, 1e16);
 
     vm.label(address(matchContract), "match");
 

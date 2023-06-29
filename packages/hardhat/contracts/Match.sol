@@ -7,7 +7,7 @@ import "./libraries/MatchLibrary.sol";
 import "./libraries/TransferHelper.sol";
 import "./interfaces/IERC20.sol";
 
-contract MatchContract {
+contract Match {
   // State Variables
   address public owner;
   uint8 private unlocked;
@@ -30,7 +30,7 @@ contract MatchContract {
     uint256 indexOrder,
     MatchLibrary.Order order
   );
-  event Match(
+  event MatchOrder(
     address indexed userA,
     address indexed tokenToSell,
     address indexed tokenToBuy,
@@ -95,6 +95,8 @@ contract MatchContract {
     _;
   }
 
+  // External functions
+
   function changeBank(address newBank) external isOwner lock {
     require(newBank != address(0));
     bank = newBank;
@@ -121,7 +123,7 @@ contract MatchContract {
       MatchLibrary.Action memory action = actions[i];
       if (action.actionType == MatchLibrary.ActionType.Deposit) {
         nativeAmount -= _deposit(action);
-      } else if (action.actionType == MatchLibrary.ActionType.Sell) {
+      } else if (action.actionType == MatchLibrary.ActionType.AddOrder) {
         nativeAmount -= _addOrder(action);
       } else if (action.actionType == MatchLibrary.ActionType.Match) {
         _match(action);
@@ -141,6 +143,85 @@ contract MatchContract {
       TransferHelper.safeTransferETH(msg.sender, nativeAmount);
     }
   }
+
+  function fetchPageOrders(
+    address tokenToSell,
+    address tokenToBuy,
+    uint256 cursor,
+    uint256 howMany
+  ) external view returns (MatchLibrary.Order[] memory values, uint256 newCursor) {
+    uint256 length = howMany;
+    uint256 orderCount = orders[tokenToSell][tokenToBuy].length;
+    if (length > orderCount - cursor) {
+      length = orderCount - cursor;
+    }
+
+    values = new MatchLibrary.Order[](length);
+    for (uint256 i = 0; i < length; i++) {
+      values[i] = orders[tokenToSell][tokenToBuy][cursor + i];
+    }
+
+    return (values, cursor + length);
+  }
+
+  // External functions that are view
+
+  function countOrders(address tokenToSell, address tokenToBuy) external view returns (uint256) {
+    return orders[tokenToSell][tokenToBuy].length;
+  }
+
+  // External functions that are pure
+
+  function getActionDeposit(address token, uint256 amount) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(token, amount);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.Deposit, data);
+  }
+
+  function getActionAddOrder(
+    address tokenToSell,
+    address tokenToBuy,
+    uint88 reward,
+    uint128 amountToSell,
+    uint128 amountToBuy
+  ) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(tokenToSell, tokenToBuy, reward, amountToSell, amountToBuy);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.AddOrder, data);
+  }
+
+  function getActionMatch(
+    address tokenToSell,
+    address tokenToBuy,
+    uint256 indexOrderA,
+    uint256 indexOrderB
+  ) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(tokenToSell, tokenToBuy, indexOrderA, indexOrderB);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.Match, data);
+  }
+
+  function getActionWithdraw(address token, uint256 amount) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(token, amount);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.Withdraw, data);
+  }
+
+  function getActionWithdrawTo(
+    address token,
+    address to,
+    uint256 amount
+  ) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(token, to, amount);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.WithdrawTo, data);
+  }
+
+  function getActionCancel(
+    address tokenToSell,
+    address tokenToBuy,
+    uint256 indexOrder
+  ) external pure returns (MatchLibrary.Action memory action) {
+    bytes memory data = abi.encode(tokenToSell, tokenToBuy, indexOrder);
+    action = MatchLibrary.Action(MatchLibrary.ActionType.Cancel, data);
+  }
+
+  // Private functions
 
   function _deposit(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
     (address token, uint256 amount) = abi.decode(action.data, (address, uint256));
@@ -211,7 +292,11 @@ contract MatchContract {
     MatchLibrary.Order storage orderB = orders[tokenToBuy][tokenToSell][indexOrderB];
     if (orderA.status != MatchLibrary.OrderStatus.Active || orderB.status != MatchLibrary.OrderStatus.Active) {
       revert OrderInactive();
-    }
+    }    
+
+    address traderB = orderB.trader;
+    address traderA = orderA.trader;
+    
     uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
     uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
     if (priceByTokenA > priceByTokenB) {
@@ -222,16 +307,14 @@ contract MatchContract {
     if (orderA.amountToBuyRest > orderB.amountToSellRest) {
       amountTransfered = orderB.amountToSellRest;
     }
+
     // we sold as order B price
     uint256 sold = (amountTransfered * orderB.amountToBuy) / orderB.amountToSell;
     if (sold > type(uint128).max) {
       revert OverflowPrice();
     }
     uint128 amountSoldTransfered = uint128(sold);
-
-    address traderB = orderB.trader;
-    address traderA = orderA.trader;
-
+   
     // the token to buy for trader A is the token to sell for trader B
     usersBalances[traderB][tokenToBuy] -= amountTransfered;
     usersBalances[traderA][tokenToBuy] += amountTransfered;
@@ -290,7 +373,7 @@ contract MatchContract {
       usersBalances[msg.sender][MatchLibrary.native] += rewardToBot;
     }
 
-    emit Match(traderA, tokenToSell, tokenToBuy, traderB, indexOrderA, indexOrderB, orderA, orderB);
+    emit MatchOrder(traderA, tokenToSell, tokenToBuy, traderB, indexOrderA, indexOrderB, orderA, orderB);
   }
 
   function _withdraw(MatchLibrary.Action memory action) private {
