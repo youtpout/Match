@@ -10,8 +10,8 @@ import "./interfaces/IERC20.sol";
 contract MatchContract {
   // State Variables
   address public owner;
+  uint8 private unlocked;
   address public bank;
-
   uint88 public minReward;
 
   uint256 public constant PRICE_DECIMALS = 1e18;
@@ -62,7 +62,7 @@ contract MatchContract {
   error OrderAIncorrectlyFulfilled();
   error OrderBIncorrectlyFulfilled();
   error NotOwner();
-
+  error Locked();
   error TransferFailed();
   error ETHTransferFailed();
   error TransferFromFailed();
@@ -73,6 +73,16 @@ contract MatchContract {
     owner = _owner;
     bank = _bank;
     minReward = _minReward;
+    unlocked = 1;
+  }
+
+  modifier lock() {
+    if (unlocked == 0) {
+      revert Locked();
+    }
+    unlocked = 0;
+    _;
+    unlocked = 1;
   }
 
   // Modifier: used to define a set of rules that must be met before or after a function is executed
@@ -85,23 +95,23 @@ contract MatchContract {
     _;
   }
 
-  function changeBank(address newBank) external isOwner {
+  function changeBank(address newBank) external isOwner lock {
     require(newBank != address(0));
     bank = newBank;
   }
 
-  function transferOwnership(address newOwner) external isOwner {
+  function transferOwnership(address newOwner) external isOwner lock {
     require(newOwner != address(0));
     owner = newOwner;
   }
 
-  function withdraw() external isOwner {
+  function withdraw() external isOwner lock {
     uint256 amount = usersBalances[bank][MatchLibrary.native];
     usersBalances[bank][MatchLibrary.native] -= amount;
     TransferHelper.safeTransferETH(bank, amount);
   }
 
-  function execute(MatchLibrary.Action[] calldata actions) external payable {
+  function execute(MatchLibrary.Action[] calldata actions) external payable lock {
     if (actions.length == 0) {
       revert NoAction();
     }
