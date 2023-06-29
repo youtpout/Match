@@ -18,9 +18,9 @@ contract MatchContract {
   /// @notice Price precision /100, 0.01%
   uint256 public constant PRICE_PRECISION = 1e2;
   /// @dev first address is the user, second address is the token, uint256 is the user balance
-  mapping(address => mapping(address => uint256)) usersBalances;
+  mapping(address => mapping(address => uint256)) public usersBalances;
   /// @dev first address is the token to sell, second address is the token to buy, order is the order information for thes tokens
-  mapping(address => mapping(address => MatchLibrary.Order[])) orders;
+  mapping(address => mapping(address => MatchLibrary.Order[])) public orders;
 
   event Deposit(address indexed user, address indexed token, uint256 desiredAmount, uint256 depositedAmount);
   event AddOrder(
