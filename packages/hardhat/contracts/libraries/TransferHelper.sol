@@ -7,7 +7,7 @@ library TransferHelper {
     bytes32 constant transferFailedSign = keccak256("TransferFailed()");
     bytes32 constant ethTransferFailedSign = keccak256("ETHTransferFailed()");
 
-    address public constant ETH = address(1);
+    address public constant NATIVE_TOKEN = address(1);
 
     bytes4 constant transferSign = 0xa9059cbb;
     bytes4 constant transferFromSign = 0x23b872dd;
@@ -18,7 +18,7 @@ library TransferHelper {
     error TransferFromFailed();
 
     function safeTransfer(address token, address to, uint256 value) internal {
-        if (token == ETH) {
+        if (token == NATIVE_TOKEN) {
             safeTransferETH(to, value);
         } else {
             _safeTransfer(token, to, value);
@@ -66,7 +66,7 @@ library TransferHelper {
         address to,
         uint256 value
     ) internal {
-        if (token == ETH) {
+        if (token == NATIVE_TOKEN) {
             safeTransferETH(to, value);
         } else {
             _safeTransferFrom(token, from, to, value);

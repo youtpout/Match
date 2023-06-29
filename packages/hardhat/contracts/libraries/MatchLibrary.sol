@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 library MatchLibrary {
-  address constant native = address(1);
+  address constant NATIVE_TOKEN = address(1);
 
   enum ActionType {
     None,

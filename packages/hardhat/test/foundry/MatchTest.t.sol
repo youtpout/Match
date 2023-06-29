@@ -103,7 +103,26 @@ contract MatchTest is Fixture {
     vm.stopPrank();
   }
 
-  function addressFromBytes32(bytes32 data) private pure returns (address) {
-    return address(uint160(uint256(data)));
+  function test_AddOrder() public {
+    uint256 hundred_usdc = 100 * 10 ** usdcToken.decimals();
+    deal(bob, 1 ether);
+    vm.startPrank(bob);
+    // test add order
+    MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](1);
+    actions[0] = matchContract.getActionAddOrder(
+      address(usdcToken),
+      address(1),
+      0.1 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
+    // test event
+    MatchLibrary.Order memory orderNull;
+    vm.expectEmit(true, true, true, false, address(matchContract));
+    emit AddOrder(bob, address(usdcToken), address(1), 1, orderNull);
+    matchContract.execute{value: 0.1 ether}(actions);
+
+    assertEq(matchContract.countOrders(address(usdcToken), address(1)), 1);
+    vm.stopPrank();
   }
 }

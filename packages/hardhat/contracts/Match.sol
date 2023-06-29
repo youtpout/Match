@@ -108,8 +108,8 @@ contract Match {
   }
 
   function withdraw() external isOwner lock {
-    uint256 amount = usersBalances[bank][MatchLibrary.native];
-    usersBalances[bank][MatchLibrary.native] -= amount;
+    uint256 amount = usersBalances[bank][MatchLibrary.NATIVE_TOKEN];
+    usersBalances[bank][MatchLibrary.NATIVE_TOKEN] -= amount;
     TransferHelper.safeTransferETH(bank, amount);
   }
 
@@ -226,7 +226,7 @@ contract Match {
   function _deposit(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
     (address token, uint256 amount) = abi.decode(action.data, (address, uint256));
     uint256 depositedAmount;
-    if (token == MatchLibrary.native) {
+    if (token == MatchLibrary.NATIVE_TOKEN) {
       removeAmount = amount;
       usersBalances[msg.sender][token] += amount;
       depositedAmount = amount;
@@ -260,7 +260,7 @@ contract Match {
     // 10% commission
     uint88 rewardToBank = (reward * 10) / 100;
     uint88 rewardToBot = reward - rewardToBank;
-    usersBalances[bank][MatchLibrary.native] += rewardToBank;
+    usersBalances[bank][MatchLibrary.NATIVE_TOKEN] += rewardToBank;
 
     uint256 indexOrder = orders[tokenToSell][tokenToBuy].length;
 
@@ -296,7 +296,7 @@ contract Match {
 
     address traderB = orderB.trader;
     address traderA = orderA.trader;
-    
+
     uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
     uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
     if (priceByTokenA > priceByTokenB) {
@@ -330,7 +330,7 @@ contract Match {
     if (orderA.amountToBuyRest == 0) {
       orderA.status = MatchLibrary.OrderStatus.Sold;
       // reward the bot
-      usersBalances[msg.sender][MatchLibrary.native] += orderA.reward;
+      usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += orderA.reward;
       orderA.reward = 0;
       if (orderA.amountToSellRest > 2) {
         // if they rest some token after order completed we give 1/3 to bot 1/3 to platform, the user keep the rest
@@ -347,13 +347,13 @@ contract Match {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderA.reward * amountTransfered) / orderA.amountToBuy);
       orderA.reward -= rewardToBot;
-      usersBalances[msg.sender][MatchLibrary.native] += rewardToBot;
+      usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += rewardToBot;
     }
 
     if (orderB.amountToBuyRest == 0) {
       orderB.status = MatchLibrary.OrderStatus.Sold;
       // reward the bot
-      usersBalances[msg.sender][MatchLibrary.native] += orderB.reward;
+      usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += orderB.reward;
       orderB.reward = 0;
       if (orderB.amountToSellRest > 2) {
         // if they rest some token after order completed we give 1/3 to bot 1/3 to platform, the user keep the rest
@@ -370,7 +370,7 @@ contract Match {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderB.reward * amountTransfered) / orderB.amountToSell);
       orderB.reward -= rewardToBot;
-      usersBalances[msg.sender][MatchLibrary.native] += rewardToBot;
+      usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += rewardToBot;
     }
 
     emit MatchOrder(traderA, tokenToSell, tokenToBuy, traderB, indexOrderA, indexOrderB, orderA, orderB);
@@ -411,7 +411,7 @@ contract Match {
       revert NotOwner();
     }
     order.status = MatchLibrary.OrderStatus.Canceled;
-    usersBalances[msg.sender][MatchLibrary.native] += order.reward;
+    usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += order.reward;
     order.reward = 0;
     emit Cancel(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
   }
