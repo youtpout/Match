@@ -264,7 +264,7 @@ contract MatchTest is Fixture {
       uint128(fifty_usdc)
     );
     (amount, reward) = matchContract.execute{value: 0.5 ether}(actions);
-    assertEq(amount, 0.5 ether);
+    assertEq(amount, 0.35 ether);
     assertEq(reward, 0);
     vm.stopPrank();
 
