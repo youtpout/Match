@@ -48,7 +48,7 @@ contract Fixture is Test {
     MatchLibrary.Order orderB
   );
   event Withdraw(address indexed user, address indexed to, uint256 amount);
-  event Cancel(
+  event CancelOrder(
     address indexed user,
     address indexed tokenToSell,
     address indexed tokenToBuy,

@@ -116,13 +116,91 @@ contract MatchTest is Fixture {
       uint128(hundred_usdc),
       0.5 ether
     );
+
     // test event
-    MatchLibrary.Order memory orderNull;
+    MatchLibrary.Order memory newOrder = MatchLibrary.Order(
+      MatchLibrary.OrderStatus.Active,
+      address(bob),
+      0.1 ether,
+      uint128(hundred_usdc),
+      0.5 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
     vm.expectEmit(true, true, true, false, address(matchContract));
-    emit AddOrder(bob, address(usdcToken), address(1), 1, orderNull);
+    emit AddOrder(bob, address(usdcToken), address(1), 0, newOrder);
     matchContract.execute{value: 0.1 ether}(actions);
+
+    MatchLibrary.Order memory orderStorage = matchContract.getOrder(address(usdcToken), address(1), 0);
+    assertEq(uint8(orderStorage.status), uint8(MatchLibrary.OrderStatus.Active));
 
     assertEq(matchContract.countOrders(address(usdcToken), address(1)), 1);
     vm.stopPrank();
+  }
+
+  function test_Cancel() public {
+    uint256 hundred_usdc = 100 * 10 ** usdcToken.decimals();
+    deal(bob, 1 ether);
+    vm.startPrank(bob);
+    // test add order
+    MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](1);
+    actions[0] = matchContract.getActionAddOrder(
+      address(usdcToken),
+      address(1),
+      0.1 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
+    matchContract.execute{value: 0.1 ether}(actions);
+
+    actions[0] = matchContract.getActionCancel(address(usdcToken), address(1), 0);
+
+    // test event
+    MatchLibrary.Order memory orderNull;
+    vm.expectEmit(true, true, true, false, address(matchContract));
+    emit CancelOrder(bob, address(usdcToken), address(1), 0, orderNull);
+    matchContract.execute(actions);
+
+    MatchLibrary.Order memory orderStorage = matchContract.getOrder(address(usdcToken), address(1), 0);
+    assertEq(uint8(orderStorage.status), uint8(MatchLibrary.OrderStatus.Canceled));
+
+    assertEq(matchContract.countOrders(address(usdcToken), address(1)), 1);
+    vm.stopPrank();
+  }
+
+  function test_Match() public {
+    uint256 hundred_usdc = 100 * 10 ** usdcToken.decimals();
+    deal(bob, 1 ether);
+    deal(alice, 1 ether);
+    vm.startPrank(bob);
+    //  deposit of 100 usdc
+    usdcToken.approve(address(matchContract), hundred_usdc);
+    MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](2);
+    actions[0] = matchContract.getActionDeposit(address(usdcToken), hundred_usdc);
+    actions[1] = matchContract.getActionAddOrder(
+      address(usdcToken),
+      address(1),
+      0.1 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
+    matchContract.execute{value: 0.1 ether}(actions);
+    vm.stopPrank();
+
+    vm.startPrank(alice);
+    actions[0] = matchContract.getActionDeposit(address(1), 0.5 ether);
+    actions[1] = matchContract.getActionAddOrder(
+      address(1),
+      address(usdcToken),
+      0.1 ether,
+      0.5 ether,
+      uint128(hundred_usdc)
+    );
+    matchContract.execute{value: 0.6 ether}(actions);
+    vm.stopPrank();
+
+    actions = new MatchLibrary.Action[](1);
+    actions[0] = matchContract.getActionMatch(address(usdcToken), address(1), 0, 0);
+    matchContract.execute(actions);
   }
 }

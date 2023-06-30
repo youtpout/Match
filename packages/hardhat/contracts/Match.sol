@@ -41,7 +41,7 @@ contract Match {
     MatchLibrary.Order orderB
   );
   event Withdraw(address indexed user, address indexed to, uint256 amount);
-  event Cancel(
+  event CancelOrder(
     address indexed user,
     address indexed tokenToSell,
     address indexed tokenToBuy,
@@ -61,8 +61,11 @@ contract Match {
   error PriceTooHigh();
   error OrderAIncorrectlyFulfilled();
   error OrderBIncorrectlyFulfilled();
+  error TraderANotEnoughToken();
+  error TraderBNotEnoughToken();
   error NotOwner();
   error Locked();
+  error SameUser();
   error TransferFailed();
   error ETHTransferFailed();
   error TransferFromFailed();
@@ -165,6 +168,14 @@ contract Match {
   }
 
   // External functions that are view
+
+  function getOrder(
+    address tokenToSell,
+    address tokenToBuy,
+    uint256 index
+  ) external view returns (MatchLibrary.Order memory) {
+    return orders[tokenToSell][tokenToBuy][index];
+  }
 
   function countOrders(address tokenToSell, address tokenToBuy) external view returns (uint256) {
     return orders[tokenToSell][tokenToBuy].length;
@@ -292,10 +303,14 @@ contract Match {
     MatchLibrary.Order storage orderB = orders[tokenToBuy][tokenToSell][indexOrderB];
     if (orderA.status != MatchLibrary.OrderStatus.Active || orderB.status != MatchLibrary.OrderStatus.Active) {
       revert OrderInactive();
-    }    
+    }
 
     address traderB = orderB.trader;
     address traderA = orderA.trader;
+
+    if (traderA == traderB) {
+      revert SameUser();
+    }
 
     uint256 priceByTokenA = (orderA.amountToBuy * PRICE_DECIMALS) / orderA.amountToSell;
     uint256 priceByTokenB = (orderB.amountToSell * PRICE_DECIMALS) / orderB.amountToBuy;
@@ -314,7 +329,14 @@ contract Match {
       revert OverflowPrice();
     }
     uint128 amountSoldTransfered = uint128(sold);
-   
+
+    if (usersBalances[traderB][tokenToBuy] < amountTransfered) {
+      revert TraderBNotEnoughToken();
+    }
+    if (usersBalances[traderA][tokenToSell] < amountSoldTransfered) {
+      revert TraderANotEnoughToken();
+    }
+
     // the token to buy for trader A is the token to sell for trader B
     usersBalances[traderB][tokenToBuy] -= amountTransfered;
     usersBalances[traderA][tokenToBuy] += amountTransfered;
@@ -413,6 +435,6 @@ contract Match {
     order.status = MatchLibrary.OrderStatus.Canceled;
     usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += order.reward;
     order.reward = 0;
-    emit Cancel(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
+    emit CancelOrder(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
   }
 }
