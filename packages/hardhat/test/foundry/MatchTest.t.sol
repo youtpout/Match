@@ -121,13 +121,14 @@ contract MatchTest is Fixture {
     MatchLibrary.Order memory newOrder = MatchLibrary.Order(
       MatchLibrary.OrderStatus.Active,
       address(bob),
-      0.1 ether,
+      // 10 % tax on reward go directly on platform
+      0.09 ether,
       uint128(hundred_usdc),
       0.5 ether,
       uint128(hundred_usdc),
       0.5 ether
     );
-    vm.expectEmit(true, true, true, false, address(matchContract));
+    vm.expectEmit(true, true, true, true, address(matchContract));
     emit AddOrder(bob, address(usdcToken), address(1), 0, newOrder);
     matchContract.execute{value: 0.1 ether}(actions);
 
@@ -156,9 +157,17 @@ contract MatchTest is Fixture {
     actions[0] = matchContract.getActionCancel(address(usdcToken), address(1), 0);
 
     // test event
-    MatchLibrary.Order memory orderNull;
-    vm.expectEmit(true, true, true, false, address(matchContract));
-    emit CancelOrder(bob, address(usdcToken), address(1), 0, orderNull);
+    MatchLibrary.Order memory newOrder = MatchLibrary.Order(
+      MatchLibrary.OrderStatus.Canceled,
+      address(bob),
+      0 ether,
+      uint128(hundred_usdc),
+      0.5 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
+    vm.expectEmit(true, true, true, true, address(matchContract));
+    emit CancelOrder(bob, address(usdcToken), address(1), 0, newOrder);
     matchContract.execute(actions);
 
     MatchLibrary.Order memory orderStorage = matchContract.getOrder(address(usdcToken), address(1), 0);
@@ -199,8 +208,14 @@ contract MatchTest is Fixture {
     matchContract.execute{value: 0.6 ether}(actions);
     vm.stopPrank();
 
-    actions = new MatchLibrary.Action[](1);
+    vm.startPrank(deployer);
+    //actions = new MatchLibrary.Action[](1);
     actions[0] = matchContract.getActionMatch(address(usdcToken), address(1), 0, 0);
+    actions[1] = matchContract.getActionWithdraw(address(1), 0.18 ether);
     matchContract.execute(actions);
+
+    uint256 balance = matchContract.usersBalances(deployer, address(1));
+    console.log("balance deployer %s", balance);
+    vm.stopPrank();
   }
 }
