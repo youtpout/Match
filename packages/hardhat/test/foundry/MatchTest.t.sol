@@ -218,4 +218,85 @@ contract MatchTest is Fixture {
     console.log("balance deployer %s", balance);
     vm.stopPrank();
   }
+
+  function test_PartialMatch() public {
+    uint256 hundred_usdc = 100 * 10 ** usdcToken.decimals();
+    uint256 fifty_usdc = 50 * 10 ** usdcToken.decimals();
+    deal(bob, 1 ether);
+    deal(alice, 1 ether);
+    deal(charlie, 1 ether);
+    vm.startPrank(bob);
+    //  deposit of 100 usdc
+    usdcToken.approve(address(matchContract), hundred_usdc);
+    MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](2);
+    actions[0] = matchContract.getActionDeposit(address(usdcToken), hundred_usdc);
+    actions[1] = matchContract.getActionAddOrder(
+      address(usdcToken),
+      address(1),
+      0.1 ether,
+      uint128(hundred_usdc),
+      0.5 ether
+    );
+    matchContract.execute{value: 0.1 ether}(actions);
+    vm.stopPrank();
+
+    vm.startPrank(alice);
+    actions[0] = matchContract.getActionDeposit(address(1), 0.3 ether);
+    actions[1] = matchContract.getActionAddOrder(
+      address(1),
+      address(usdcToken),
+      0.1 ether,
+      0.3 ether,
+      uint128(hundred_usdc / 2)
+    );
+    (uint256 amount, uint256 reward) = matchContract.execute{value: 0.4 ether}(actions);
+    assertEq(amount, 0.4 ether);
+    assertEq(reward, 0);
+    vm.stopPrank();
+
+    vm.startPrank(charlie);
+    actions[0] = matchContract.getActionDeposit(address(1), 0.25 ether);
+    actions[1] = matchContract.getActionAddOrder(
+      address(1),
+      address(usdcToken),
+      0.1 ether,
+      0.25 ether,
+      uint128(fifty_usdc)
+    );
+    (amount, reward) = matchContract.execute{value: 0.5 ether}(actions);
+    assertEq(amount, 0.5 ether);
+    assertEq(reward, 0);
+    vm.stopPrank();
+
+    vm.startPrank(deployer);
+    actions = new MatchLibrary.Action[](3);
+    actions[0] = matchContract.getActionMatch(address(usdcToken), address(1), 0, 0);
+    actions[1] = matchContract.getActionMatch(address(usdcToken), address(1), 0, 1);
+    actions[2] = matchContract.getActionWithdraw(address(1), 0.1 ether);
+    uint256 checkpointGasLeft = gasleft();
+    (amount, reward) = matchContract.execute(actions);
+    uint256 checkpointGasLeft2 = gasleft();
+    assertEq(amount, 0);
+    assertGt(reward, 0.2 ether);
+
+    // Subtract 100 to account for the warm SLOAD in startMeasuringGas.
+    uint256 gasDelta = checkpointGasLeft - checkpointGasLeft2 - 100;
+
+    _logOrder(address(1), address(usdcToken), 0);
+    _logOrder(address(usdcToken), address(1), 0);
+    _logOrder(address(1), address(usdcToken), 1);
+    console.log("gas match %s", gasDelta);
+
+    vm.stopPrank();
+  }
+
+  function _logOrder(
+    address tokenSell,
+    address tokenBuy,
+    uint256 index
+  ) private view returns (MatchLibrary.Order memory order) {
+    order = matchContract.getOrder(tokenSell, tokenBuy, index);
+    console.log("status %s trader %s reward %s", uint8(order.status), order.trader, order.reward);
+    console.log("amountToSellRest %s amountToBuyRest %s", order.amountToSellRest, order.amountToBuyRest);
+  }
 }

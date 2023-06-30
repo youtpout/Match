@@ -116,7 +116,9 @@ contract Match {
     TransferHelper.safeTransferETH(bank, amount);
   }
 
-  function execute(MatchLibrary.Action[] calldata actions) external payable lock {
+  function execute(
+    MatchLibrary.Action[] calldata actions
+  ) external payable lock returns (uint256 amount, uint256 reward) {
     if (actions.length == 0) {
       revert NoAction();
     }
@@ -125,11 +127,11 @@ contract Match {
     do {
       MatchLibrary.Action memory action = actions[i];
       if (action.actionType == MatchLibrary.ActionType.Deposit) {
-        nativeAmount -= _deposit(action);
+        amount += _deposit(action);
       } else if (action.actionType == MatchLibrary.ActionType.AddOrder) {
-        nativeAmount -= _addOrder(action);
+        amount += _addOrder(action);
       } else if (action.actionType == MatchLibrary.ActionType.Match) {
-        _match(action);
+        reward += _match(action);
       } else if (action.actionType == MatchLibrary.ActionType.Withdraw) {
         _withdraw(action);
       } else if (action.actionType == MatchLibrary.ActionType.WithdrawTo) {
@@ -140,7 +142,13 @@ contract Match {
         revert UnknownAction();
       }
       i++;
+
+      if (amount > nativeAmount) {
+        revert InsufficientAmount();
+      }
     } while (i < actions.length);
+
+    nativeAmount -= amount;
 
     if (nativeAmount > 0) {
       TransferHelper.safeTransferETH(msg.sender, nativeAmount);
@@ -290,7 +298,7 @@ contract Match {
     emit AddOrder(msg.sender, tokenToSell, tokenToBuy, indexOrder, order);
   }
 
-  function _match(MatchLibrary.Action memory action) private {
+  function _match(MatchLibrary.Action memory action) private returns (uint256 totalReward) {
     (address tokenToSell, address tokenToBuy, uint256 indexOrderA, uint256 indexOrderB) = abi.decode(
       action.data,
       (address, address, uint256, uint256)
@@ -340,6 +348,7 @@ contract Match {
     // the token to buy for trader A is the token to sell for trader B
     usersBalances[traderB][tokenToBuy] -= amountTransfered;
     usersBalances[traderA][tokenToBuy] += amountTransfered;
+
     usersBalances[traderB][tokenToSell] += amountSoldTransfered;
     usersBalances[traderA][tokenToSell] -= amountSoldTransfered;
 
@@ -353,22 +362,15 @@ contract Match {
       orderA.status = MatchLibrary.OrderStatus.Sold;
       // reward the bot
       usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += orderA.reward;
+      totalReward += orderA.reward;
       orderA.reward = 0;
-      if (orderA.amountToSellRest > 2) {
-        // if they rest some token after order completed we give 1/3 to bot 1/3 to platform, the user keep the rest
-        uint128 restPart = orderA.amountToSellRest / 3;
-        uint128 amountDeduct = restPart * 2;
-        usersBalances[traderA][tokenToSell] -= amountDeduct;
-        usersBalances[msg.sender][tokenToSell] += restPart;
-        usersBalances[bank][tokenToSell] += restPart;
-        orderA.amountToSellRest -= amountDeduct;
-      }
     } else if (orderA.amountToSellRest == 0 && orderA.amountToBuyRest > 0) {
       revert OrderAIncorrectlyFulfilled();
     } else {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderA.reward * amountTransfered) / orderA.amountToBuy);
       orderA.reward -= rewardToBot;
+      totalReward += rewardToBot;
       usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += rewardToBot;
     }
 
@@ -376,22 +378,15 @@ contract Match {
       orderB.status = MatchLibrary.OrderStatus.Sold;
       // reward the bot
       usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += orderB.reward;
+      totalReward += orderB.reward;
       orderB.reward = 0;
-      if (orderB.amountToSellRest > 2) {
-        // if they rest some token after order completed we give 1/3 to bot 1/3 to platform, the user keep the rest
-        uint128 restPart = orderB.amountToSellRest / 3;
-        uint128 amountDeduct = restPart * 2;
-        usersBalances[traderB][tokenToBuy] -= amountDeduct;
-        usersBalances[msg.sender][tokenToBuy] += restPart;
-        usersBalances[bank][tokenToBuy] += restPart;
-        orderB.amountToSellRest -= amountDeduct;
-      }
     } else if (orderB.amountToSellRest == 0 && orderB.amountToBuyRest > 0) {
       revert OrderBIncorrectlyFulfilled();
     } else {
       // reward the bot from the part completed
       uint88 rewardToBot = uint88((orderB.reward * amountTransfered) / orderB.amountToSell);
       orderB.reward -= rewardToBot;
+      totalReward += rewardToBot;
       usersBalances[msg.sender][MatchLibrary.NATIVE_TOKEN] += rewardToBot;
     }
 
