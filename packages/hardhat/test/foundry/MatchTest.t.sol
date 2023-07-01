@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.17;
 
 import {Fixture} from "test/foundry/Fixture.t.sol";
 import {MatchLibrary} from "contracts/libraries/MatchLibrary.sol";
