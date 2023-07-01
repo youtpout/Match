@@ -1,6 +1,7 @@
 # 🏗 Match !
 
-🧪 A decentralized order book on defi has become a reality thanks to Match! where anyone can place a buy or sell order. 
+🧪 The decentralized order book has become a reality thanks to Match! where anyone can place a buy or sell order.
+The bots will then match! them in exchange for a reward.
 
 ⚙️ Built using Scaffold-eth
 
