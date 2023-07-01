@@ -98,6 +98,10 @@ const config: HardhatUserConfig = {
       accounts: [deployerPrivateKey],
       verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
     },
+    fantom: {
+      url: `https://rpc.ankr.com/fantom/`,
+      accounts: [deployerPrivateKey],
+    },
   },
   verify: {
     etherscan: {
