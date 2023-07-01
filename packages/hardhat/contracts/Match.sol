@@ -5,8 +5,9 @@ pragma solidity ^0.8.17;
 import "./libraries/MatchLibrary.sol";
 import "./libraries/TransferHelper.sol";
 import "./interfaces/IERC20.sol";
+import "./interfaces/IMatch.sol";
 
-contract Match {
+contract Match is IMatch {
   // State Variables
   address public owner;
   uint8 private unlocked;
