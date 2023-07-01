@@ -1,0 +1,9 @@
+version: 1.0
+runtime: node16 
+build:
+  commands:
+    build:
+      - yarn install --immutable
+      - yarn next:build
+run: 
+  command: yarn next:start
