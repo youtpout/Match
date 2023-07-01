@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: BUSL 1.1
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.20;
 
 // Useful for debugging. Remove when deploying to a live network.
 import "./libraries/MatchLibrary.sol";
