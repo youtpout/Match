@@ -1,11 +1,11 @@
 const contracts = {
-  31337: [
+  250: [
     {
-      chainId: "31337",
-      name: "localhost",
+      chainId: "250",
+      name: "fantom",
       contracts: {
         Match: {
-          address: "0xE2b5bDE7e80f89975f7229d78aD9259b2723d11F",
+          address: "0xAc76521a79CB91633de9AA15D5C842DBa135E7df",
           abi: [
             {
               inputs: [
