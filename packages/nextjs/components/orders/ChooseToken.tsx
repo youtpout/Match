@@ -3,7 +3,7 @@ import nativeName from "../../constants/nativeName";
 import { useNetwork, usePrepareContractWrite, useSigner } from "wagmi";
 
 export const ChooseToken = ({ sell, selectedToken, setSelectedToken, list, amountToken, setAmountToken }) => {
-  const [coin, setCoin] = useState("Fantom");
+  const [coin, setCoin] = useState("FTM");
   const [chainId, setChainId] = useState(1);
   const { chain } = useNetwork();
 
@@ -11,14 +11,14 @@ export const ChooseToken = ({ sell, selectedToken, setSelectedToken, list, amoun
     setChainId(chain?.id || 250);
     const coinInfo = nativeName.find(x => x.chainId == chainId);
     if (coinInfo) {
-      setCoin(coinInfo.name);
+      setCoin(coinInfo.symbol);
     } else {
-      setCoin("Fantom");
+      setCoin("FTM");
     }
   }, [chain]);
 
   return (
-    <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-5">
+    <div className="mt-8 mr-8 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-5">
       <label className="font-bai-jamjuree text-lg sm:text-2xl">Token to {sell ? "Sell" : "Buy"}</label>
       <input
         type="text"

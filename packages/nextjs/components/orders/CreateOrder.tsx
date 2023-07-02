@@ -21,7 +21,7 @@ export const CreateOrder = () => {
   const [erc20Contract, setErc20Contract] = useState<ERC20 | undefined>();
   const [minReward, setMinReward] = useState(ethers.utils.parseEther("10"));
   const [reward, setReward] = useState(10);
-  const [coin, setCoin] = useState("Fantom");
+  const [coin, setCoin] = useState("FTM");
   const [matchAddress, setMatchAddress] = useState("");
   const [selectedToken1, setSelectedToken1] = useState("0x0000000000000000000000000000000000000001");
   const [selectedToken2, setSelectedToken2] = useState("0x0000000000000000000000000000000000000001");
@@ -40,9 +40,9 @@ export const CreateOrder = () => {
     const chainId = chain?.id || 250;
     const coinInfo = nativeName.find(x => x.chainId == chainId);
     if (coinInfo) {
-      setCoin(coinInfo.name);
+      setCoin(coinInfo.symbol);
     } else {
-      setCoin("Fantom");
+      setCoin("FTM");
     }
 
     const deployedContracts = contracts as GenericContractsDeclaration | null;
@@ -51,8 +51,8 @@ export const CreateOrder = () => {
     const mAddress = chainMetaData?.contracts["Match"]?.address;
     setMatchAddress(mAddress || "");
 
-    if (signer) {
-      const matchCont = Match__factory.connect(matchAddress, signer);
+    if (signer && mAddress) {
+      const matchCont = Match__factory.connect(mAddress, signer);
       setMatchContract(matchCont);
       getDatas();
     }
@@ -60,9 +60,9 @@ export const CreateOrder = () => {
 
   useEffect(() => {
     if (selectedToken1 && signer) {
-      const matchCont = ERC20__factory.connect(selectedToken1, signer);
-      setErc20Contract(matchCont);
-      getAllowance();
+      const erc20cont = ERC20__factory.connect(selectedToken1, signer);
+      setErc20Contract(erc20cont);
+      getAllowance(erc20cont);
     }
   }, [selectedToken1, signer, matchContract, amountToken1]);
 
@@ -141,14 +141,14 @@ export const CreateOrder = () => {
     }
   };
 
-  const getAllowance = async () => {
+  const getAllowance = async (erc20Cont: ERC20) => {
     if (selectedToken1 == nativeAddress) {
       setNeedApprove(false);
       return;
     }
-    if (signer && erc20Contract && selectedToken1) {
+    if (signer && erc20Cont && selectedToken1 && amountToken1) {
       const user = await signer.getAddress();
-      const amount = await erc20Contract.allowance(user, matchAddress);
+      const amount = await erc20Cont.allowance(user, matchAddress);
       setAllowance(amount);
       const token1Dec = await getDecimal(selectedToken1);
       const amount1 = BigNumber.from(amountToken1.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token1Dec)));
@@ -170,14 +170,33 @@ export const CreateOrder = () => {
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
           <span className="text-5xl text-black">Create order</span>
 
-          <ChooseToken
-            sell={true}
-            selectedToken={selectedToken1}
-            setSelectedToken={setSelectedToken1}
-            list={tokensAddresses}
-            amountToken={amountToken1}
-            setAmountToken={setAmountToken1}
-          ></ChooseToken>
+          <div className="flex items-center">
+            <ChooseToken
+              sell={true}
+              selectedToken={selectedToken1}
+              setSelectedToken={setSelectedToken1}
+              list={tokensAddresses}
+              amountToken={amountToken1}
+              setAmountToken={setAmountToken1}
+            ></ChooseToken>
+            {needApprove && (
+              <div className="flex mt-8 rounded-full border border-primary p-1 flex-shrink-0">
+                <button
+                  className={`btn btn-primary rounded-full capitalize font-normal font-white w-36 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                    isApproving ? "loading" : ""
+                  }`}
+                  onClick={() => write?.()}
+                >
+                  {!isApproving && (
+                    <>
+                      Approve <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                    </>
+                  )}
+                </button>
+                {error && <div>An error occurred preparing the transaction: {error.message}</div>}
+              </div>
+            )}
+          </div>
           <ChooseToken
             sell={false}
             selectedToken={selectedToken2}
@@ -200,23 +219,6 @@ export const CreateOrder = () => {
                 <Info />
               </IconButton>
             </Tooltip>
-            {needApprove && (
-              <div className="flex rounded-full border border-primary p-1 flex-shrink-0">
-                <button
-                  className={`btn btn-primary rounded-full capitalize font-normal font-white w-36 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
-                    isApproving ? "loading" : ""
-                  }`}
-                  onClick={() => write?.()}
-                >
-                  {!isApproving && (
-                    <>
-                      Approve <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
-                    </>
-                  )}
-                </button>
-                {error && <div>An error occurred preparing the transaction: {error.message}</div>}
-              </div>
-            )}
           </div>
           <div className="flex flex-col rounded-full p-1 flex-shrink-0 items-start">
             <button

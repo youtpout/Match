@@ -58,7 +58,7 @@ const addresses = [
   },
   {
     contract: "erc20",
-    name: "btc",
+    name: "wBtc",
     decimals: 8,
     addresses: [
       {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import addresses from "../../constants/addresses";
 import nativeName from "../../constants/nativeName";
 import contracts from "../../generated/deployedContracts";
@@ -13,17 +13,12 @@ import { Match__factory } from "~~/typechain-types/factories/contracts/Match__fa
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 export const ShowOrders = () => {
-  const [actions, setActions] = useState([]);
-  const [allowance, setAllowance] = useState(BigNumber.from("0"));
-  const [needApprove, setNeedApprove] = useState(false);
   const [matchContract, setMatchContract] = useState<Match | undefined>();
-  const [erc20Contract, setErc20Contract] = useState<ERC20 | undefined>();
-  const [reward, setReward] = useState(10);
-  const [coin, setCoin] = useState("Fantom");
-  const [matchAddress, setMatchAddress] = useState("");
+  const [coin, setCoin] = useState("FTM");
   const [orders, setOrders] = useState<AddOrderEvent[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [errorSending, setErrorSending] = useState("");
+  const [refresh, setRefresh] = useState(0);
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -32,32 +27,40 @@ export const ShowOrders = () => {
   const { data: signer } = useSigner();
 
   useEffect(() => {
+    // update data every 10 seconds
+    const interval = setInterval(() => {
+      setRefresh(refresh + 1);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     const chainId = chain?.id || 250;
     const coinInfo = nativeName.find(x => x.chainId == chainId);
     if (coinInfo) {
-      setCoin(coinInfo.name);
+      setCoin(coinInfo.symbol);
     } else {
-      setCoin("Fantom");
+      setCoin("FTM");
     }
 
     const deployedContracts = contracts as GenericContractsDeclaration | null;
     console.log("chainId", chainId);
     const chainMetaData = deployedContracts?.[chainId]?.[0];
     const mAddress = chainMetaData?.contracts["Match"]?.address;
-    setMatchAddress(mAddress || "");
 
-    if (signer && !isSending) {
-      const matchCont = Match__factory.connect(matchAddress, signer);
+    if (signer && mAddress && !isSending) {
+      const matchCont = Match__factory.connect(mAddress, signer);
       setMatchContract(matchCont);
       getDatas(matchCont);
     }
-  }, [chain, signer, isSending]);
+  }, [chain, signer, isSending, refresh]);
 
   const getDatas = async (matchCont: Match) => {
-    console.log("getDatas");
     if (matchCont && signer) {
       const user = await signer.getAddress();
       const filter1 = matchCont.filters.AddOrder(user);
+
       let query = await matchCont.queryFilter(filter1);
 
       if (query?.length) {
@@ -84,7 +87,7 @@ export const ShowOrders = () => {
 
   const getTokenInfo = (amount: BigNumber, tokenAddress: string): string => {
     let decimals = 18;
-    let name = "Fantom";
+    let name = "FTM";
     if (tokenAddress !== nativeAddress) {
       const find = tokensAddresses.find(x =>
         x.addresses.some(z => z.address.toLowerCase() === tokenAddress.toLowerCase()),
@@ -114,7 +117,7 @@ export const ShowOrders = () => {
         const execute = await matchContract.execute([cancelFunction]);
         await execute.wait();
       } else {
-        setErrorSending("Connect your wallet, complete token to sell/to buy and reward and try another time please.");
+        setErrorSending("Connect your wallet.");
       }
     } catch (error: any) {
       console.log(error);
