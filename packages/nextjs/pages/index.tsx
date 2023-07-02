@@ -14,6 +14,14 @@ const Home: NextPage = () => {
             <span className="block text-4xl font-bold">Match !</span>
           </h1>
           <p className="text-center text-lg">An order book fully decentralised created for the fantom hacakthon</p>
+          <a
+            href="https://ftmscan.com/address/0x3c8A0615AE12682fEB3C25835988Bee07eB4f1B1#code"
+            target="_blank"
+            rel="noreferrer"
+            className="link link-accent"
+          >
+            💎 Verified contract
+          </a>
         </div>
 
         <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">

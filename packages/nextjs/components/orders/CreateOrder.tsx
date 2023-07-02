@@ -168,7 +168,7 @@ export const CreateOrder = () => {
     <div className="flex bg-base-300 relative pb-10">
       <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
-          <span className="text-5xl text-black">Create order</span>
+          <span className="text-5xl">Create order</span>
 
           <div className="flex items-center">
             <ChooseToken
