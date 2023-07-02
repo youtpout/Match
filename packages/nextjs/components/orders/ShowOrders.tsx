@@ -3,6 +3,8 @@ import addresses from "../../constants/addresses";
 import nativeName from "../../constants/nativeName";
 import contracts from "../../generated/deployedContracts";
 import { OrderStatus } from "./OrderStatus";
+import CancelIcon from "@mui/icons-material/Cancel";
+import IconButton from "@mui/material/IconButton";
 import { BigNumber, ethers } from "ethers";
 import { useNetwork, useSigner } from "wagmi";
 import { ERC20, ERC20__factory } from "~~/typechain-types";
@@ -20,6 +22,8 @@ export const ShowOrders = () => {
   const [coin, setCoin] = useState("Fantom");
   const [matchAddress, setMatchAddress] = useState("");
   const [orders, setOrders] = useState<AddOrderEvent[]>([]);
+  const [isSending, setIsSending] = useState(false);
+  const [errorSending, setErrorSending] = useState("");
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -42,32 +46,34 @@ export const ShowOrders = () => {
     const mAddress = chainMetaData?.contracts["Match"]?.address;
     setMatchAddress(mAddress || "");
 
-    if (signer) {
+    if (signer && !isSending) {
       const matchCont = Match__factory.connect(matchAddress, signer);
       setMatchContract(matchCont);
       getDatas(matchCont);
     }
-  }, [chain, signer]);
-
-  const getDecimal = async (token: string) => {
-    if (token === nativeAddress) {
-      return 18;
-    }
-    if (signer) {
-      const contract = ERC20__factory.connect(token, signer);
-      return await contract.decimals();
-    }
-    throw "Unknow decimal";
-  };
+  }, [chain, signer, isSending]);
 
   const getDatas = async (matchCont: Match) => {
     console.log("getDatas");
     if (matchCont && signer) {
       const user = await signer.getAddress();
       const filter1 = matchCont.filters.AddOrder(user);
-      const query = await matchCont.queryFilter(filter1);
+      let query = await matchCont.queryFilter(filter1);
+
+      if (query?.length) {
+        query = await Promise.all(
+          query.map(async x => {
+            const data = { ...x };
+            const result = await matchCont.getOrder(x.args.tokenToSell, x.args.tokenToBuy, x.args.indexOrder);
+            data.args = { ...x.args };
+            data.args.order = result;
+            return data;
+          }),
+        );
+
+        console.log("query result", query);
+      }
       setOrders(query);
-      console.log("query result", query);
     }
   };
 
@@ -94,14 +100,49 @@ export const ShowOrders = () => {
     return `${ethers.utils.formatUnits(amount, decimals)} ${name}`;
   };
 
+  const cancelOrder = async (order: AddOrderEvent) => {
+    try {
+      setIsSending(true);
+      setErrorSending("");
+      if (matchContract && order) {
+        const cancelFunction = await matchContract.getActionCancel(
+          order.args.tokenToSell,
+          order.args.tokenToBuy,
+          order.args.indexOrder,
+        );
+
+        const execute = await matchContract.execute([cancelFunction]);
+        await execute.wait();
+      } else {
+        setErrorSending("Connect your wallet, complete token to sell/to buy and reward and try another time please.");
+      }
+    } catch (error: any) {
+      console.log(error);
+      if (error?.error?.data?.data && matchContract) {
+        try {
+          const decodedError = matchContract.interface.parseError(error.error.data.data);
+          setErrorSending(`Transaction will failed: ${decodedError?.name}`);
+        } catch (e2) {
+          setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+        }
+      } else {
+        setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="flex bg-base-300 relative pb-10">
       <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
           <span className="text-5xl text-black">My orders</span>
+          {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
           <table className="mt-10">
             <thead>
               <tr>
+                <th>Actions</th>
                 <th>Status</th>
                 <th>Sell</th>
                 <th>Buy</th>
@@ -112,6 +153,20 @@ export const ShowOrders = () => {
             <tbody>
               {orders.map((order: AddOrderEvent, index: number) => (
                 <tr key={index}>
+                  <th>
+                    {order.args.order.status === 1 && (
+                      <IconButton
+                        disabled={isSending}
+                        aria-label="delete"
+                        className="tooltip"
+                        data-tip="cancel"
+                        color="secondary"
+                        onClick={() => cancelOrder(order)}
+                      >
+                        <CancelIcon />
+                      </IconButton>
+                    )}
+                  </th>
                   <td className="text-m text-black">
                     <OrderStatus status={order.args.order.status}></OrderStatus>
                   </td>
