@@ -5,6 +5,8 @@ The bots will then match! them in exchange for a reward.
 
 ⚙️ Built using Scaffold-eth
 
+[Fantom contract address 0x3c8A0615AE12682fEB3C25835988Bee07eB4f1B1](https://ftmscan.com/address/0x3c8A0615AE12682fEB3C25835988Bee07eB4f1B1#code)
+
 ## Contents
 
 - [Requirements](#requirements)

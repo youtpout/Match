@@ -5,7 +5,7 @@ const contracts = {
       name: "fantom",
       contracts: {
         Match: {
-          address: "0xAc76521a79CB91633de9AA15D5C842DBa135E7df",
+          address: "0x3c8A0615AE12682fEB3C25835988Bee07eB4f1B1",
           abi: [
             {
               inputs: [
@@ -96,6 +96,11 @@ const contracts = {
             {
               inputs: [],
               name: "RewardTooLow",
+              type: "error",
+            },
+            {
+              inputs: [],
+              name: "SameToken",
               type: "error",
             },
             {
@@ -464,19 +469,6 @@ const contracts = {
             {
               inputs: [],
               name: "PRICE_DECIMALS",
-              outputs: [
-                {
-                  internalType: "uint256",
-                  name: "",
-                  type: "uint256",
-                },
-              ],
-              stateMutability: "view",
-              type: "function",
-            },
-            {
-              inputs: [],
-              name: "PRICE_PRECISION",
               outputs: [
                 {
                   internalType: "uint256",
