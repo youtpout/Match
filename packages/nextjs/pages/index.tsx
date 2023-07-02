@@ -1,6 +1,7 @@
 import type { NextPage } from "next";
 import { MetaHeader } from "~~/components/MetaHeader";
-import { CreateOrder } from "~~/components/home/CreateOrder";
+import { CreateOrder } from "~~/components/orders/CreateOrder";
+import { ShowOrders } from "~~/components/orders/ShowOrders";
 
 const Home: NextPage = () => {
   return (
@@ -17,6 +18,7 @@ const Home: NextPage = () => {
 
         <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
           <CreateOrder></CreateOrder>
+          <ShowOrders></ShowOrders>
         </div>
       </div>
     </>

@@ -71,7 +71,6 @@ export declare namespace MatchLibrary {
 export interface MatchInterface extends utils.Interface {
   functions: {
     "PRICE_DECIMALS()": FunctionFragment;
-    "PRICE_PRECISION()": FunctionFragment;
     "bank()": FunctionFragment;
     "changeBank(address)": FunctionFragment;
     "countOrders(address,address)": FunctionFragment;
@@ -95,7 +94,6 @@ export interface MatchInterface extends utils.Interface {
   getFunction(
     nameOrSignatureOrTopic:
       | "PRICE_DECIMALS"
-      | "PRICE_PRECISION"
       | "bank"
       | "changeBank"
       | "countOrders"
@@ -118,10 +116,6 @@ export interface MatchInterface extends utils.Interface {
 
   encodeFunctionData(
     functionFragment: "PRICE_DECIMALS",
-    values?: undefined
-  ): string;
-  encodeFunctionData(
-    functionFragment: "PRICE_PRECISION",
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "bank", values?: undefined): string;
@@ -219,10 +213,6 @@ export interface MatchInterface extends utils.Interface {
 
   decodeFunctionResult(
     functionFragment: "PRICE_DECIMALS",
-    data: BytesLike
-  ): Result;
-  decodeFunctionResult(
-    functionFragment: "PRICE_PRECISION",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "bank", data: BytesLike): Result;
@@ -397,8 +387,6 @@ export interface Match extends BaseContract {
   functions: {
     PRICE_DECIMALS(overrides?: CallOverrides): Promise<[BigNumber]>;
 
-    PRICE_PRECISION(overrides?: CallOverrides): Promise<[BigNumber]>;
-
     bank(overrides?: CallOverrides): Promise<[string]>;
 
     changeBank(
@@ -551,8 +539,6 @@ export interface Match extends BaseContract {
 
   PRICE_DECIMALS(overrides?: CallOverrides): Promise<BigNumber>;
 
-  PRICE_PRECISION(overrides?: CallOverrides): Promise<BigNumber>;
-
   bank(overrides?: CallOverrides): Promise<string>;
 
   changeBank(
@@ -672,8 +658,6 @@ export interface Match extends BaseContract {
 
   callStatic: {
     PRICE_DECIMALS(overrides?: CallOverrides): Promise<BigNumber>;
-
-    PRICE_PRECISION(overrides?: CallOverrides): Promise<BigNumber>;
 
     bank(overrides?: CallOverrides): Promise<string>;
 
@@ -881,8 +865,6 @@ export interface Match extends BaseContract {
   estimateGas: {
     PRICE_DECIMALS(overrides?: CallOverrides): Promise<BigNumber>;
 
-    PRICE_PRECISION(overrides?: CallOverrides): Promise<BigNumber>;
-
     bank(overrides?: CallOverrides): Promise<BigNumber>;
 
     changeBank(
@@ -988,8 +970,6 @@ export interface Match extends BaseContract {
 
   populateTransaction: {
     PRICE_DECIMALS(overrides?: CallOverrides): Promise<PopulatedTransaction>;
-
-    PRICE_PRECISION(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 
     bank(overrides?: CallOverrides): Promise<PopulatedTransaction>;
 

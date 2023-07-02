@@ -9,14 +9,12 @@ import { IconButton, Tooltip } from "@mui/material";
 import { BigNumber, ethers, utils } from "ethers";
 import { useContractWrite, useNetwork, usePrepareContractWrite, useSigner } from "wagmi";
 import { ArrowSmallRightIcon } from "@heroicons/react/24/outline";
-import { useScaffoldContractWrite } from "~~/hooks/scaffold-eth";
 import { ERC20, ERC20__factory } from "~~/typechain-types";
 import { Match } from "~~/typechain-types/contracts/Match";
 import { Match__factory } from "~~/typechain-types/factories/contracts/Match__factory";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 export const CreateOrder = () => {
-  const [actions, setActions] = useState([]);
   const [allowance, setAllowance] = useState(BigNumber.from("0"));
   const [needApprove, setNeedApprove] = useState(false);
   const [matchContract, setMatchContract] = useState<Match | undefined>();
@@ -81,16 +79,6 @@ export const CreateOrder = () => {
 
   const { write } = useContractWrite(config);
 
-  const { writeAsync, isLoading } = useScaffoldContractWrite({
-    contractName: "Match",
-    functionName: "execute",
-    args: [actions],
-    value: "0.01",
-    onBlockConfirmation: txnReceipt => {
-      console.log("📦 Transaction blockHash", txnReceipt.blockHash);
-    },
-  });
-
   const createOrder = async () => {
     try {
       setIsSending(true);
@@ -120,7 +108,16 @@ export const CreateOrder = () => {
       }
     } catch (error: any) {
       console.log(error);
-      setErrorSending(error?.data?.message || error?.message || "Unknow error");
+      if (error?.error?.data?.data && matchContract) {
+        try {
+          const decodedError = matchContract.interface.parseError(error.error.data.data);
+          setErrorSending(`Transaction will failed: ${decodedError?.name}`);
+        } catch (e2) {
+          setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+        }
+      } else {
+        setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+      }
     } finally {
       setIsSending(false);
     }
@@ -171,7 +168,7 @@ export const CreateOrder = () => {
     <div className="flex bg-base-300 relative pb-10">
       <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
-          <span className="text-4xl sm:text-6xl text-black">Set a Greeting_</span>
+          <span className="text-5xl text-black">Create order</span>
 
           <ChooseToken
             sell={true}
@@ -198,7 +195,7 @@ export const CreateOrder = () => {
               onChange={e => setReward(e.target.value)}
             />
 
-            <Tooltip title="Reward for the bot that matches your order (10% for the platform, 90% for the bot)">
+            <Tooltip title="Reward for the bot that matches your order, minimun amount 10FTM (10% for the platform, 90% for the bot)">
               <IconButton>
                 <Info />
               </IconButton>

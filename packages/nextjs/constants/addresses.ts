@@ -2,6 +2,7 @@ const addresses = [
   {
     contract: "erc20",
     name: "Native",
+    decimals: 18,
     addresses: [
       {
         chainId: 1,
@@ -20,6 +21,7 @@ const addresses = [
   {
     contract: "erc20",
     name: "Usdt",
+    decimals: 6,
     addresses: [
       {
         chainId: 1,
@@ -38,6 +40,7 @@ const addresses = [
   {
     contract: "erc20",
     name: "Usdc",
+    decimals: 6,
     addresses: [
       {
         chainId: 1,
@@ -56,6 +59,7 @@ const addresses = [
   {
     contract: "erc20",
     name: "btc",
+    decimals: 8,
     addresses: [
       {
         chainId: 1,
