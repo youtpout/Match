@@ -290,6 +290,51 @@ contract MatchTest is Fixture {
     vm.stopPrank();
   }
 
+  function test_Match_BigAmount() public {
+    uint256 billion_usdc = 1e9 * 10 ** usdcToken.decimals();
+    deal(bob, 100000 ether);
+    deal(address(usdcToken), bob, billion_usdc);
+    deal(alice, 100000 ether);
+    vm.startPrank(bob);
+    //  deposit of 100 usdc
+    usdcToken.approve(address(matchContract), billion_usdc);
+    console.log("approved");
+    MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](2);
+    actions[0] = matchContract.getActionDeposit(address(usdcToken), billion_usdc);
+    actions[1] = matchContract.getActionAddOrder(
+      address(usdcToken),
+      address(1),
+      5 ether,
+      uint128(billion_usdc),
+      90000 ether
+    );
+    matchContract.execute{value: 5 ether}(actions);
+    vm.stopPrank();
+    console.log("bobo");
+    vm.startPrank(alice);
+    actions[0] = matchContract.getActionDeposit(address(1), 90000 ether);
+    actions[1] = matchContract.getActionAddOrder(
+      address(1),
+      address(usdcToken),
+      5 ether,
+      90000 ether,
+      uint128(billion_usdc)
+    );
+    matchContract.execute{value: 90005 ether}(actions);
+    vm.stopPrank();
+
+    vm.startPrank(deployer);
+    //actions = new MatchLibrary.Action[](1);
+    actions[0] = matchContract.getActionMatch(address(usdcToken), address(1), 0, 0);
+    actions[1] = matchContract.getActionWithdraw(address(1), 9 ether);
+    matchContract.execute(actions);
+
+    uint256 balanceAlice = matchContract.usersBalances(alice, address(usdcToken));
+    console.log("balance alice %s", balanceAlice);
+    assertEq(balanceAlice, billion_usdc);
+    vm.stopPrank();
+  }
+
   function _logOrder(
     address tokenSell,
     address tokenBuy,

@@ -3,17 +3,17 @@ import nativeName from "../../constants/nativeName";
 import { useNetwork, usePrepareContractWrite, useSigner } from "wagmi";
 
 export const ChooseToken = ({ sell, selectedToken, setSelectedToken, list, amountToken, setAmountToken }) => {
-  const [coin, setCoin] = useState("Ethereum");
+  const [coin, setCoin] = useState("Fantom");
   const [chainId, setChainId] = useState(1);
   const { chain } = useNetwork();
 
   useEffect(() => {
-    setChainId(chain?.id || 1);
+    setChainId(chain?.id || 250);
     const coinInfo = nativeName.find(x => x.chainId == chainId);
     if (coinInfo) {
       setCoin(coinInfo.name);
     } else {
-      setCoin("Ethereum");
+      setCoin("Fantom");
     }
   }, [chain]);
 

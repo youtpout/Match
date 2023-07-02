@@ -15,8 +15,7 @@ contract Match is IMatch {
   uint88 public minReward;
 
   uint256 public constant PRICE_DECIMALS = 1e18;
-  /// @notice Price precision /100, 0.01%
-  uint256 public constant PRICE_PRECISION = 1e2;
+
   /// @dev first address is the user, second address is the token, uint256 is the user balance
   mapping(address => mapping(address => uint256)) public usersBalances;
   /// @dev first address is the token to sell, second address is the token to buy, order is the order information for thes tokens
@@ -66,6 +65,7 @@ contract Match is IMatch {
   error NotOwner();
   error Locked();
   error SameUser();
+  error SameToken();
   error TransferFailed();
   error ETHTransferFailed();
   error TransferFromFailed();
@@ -267,6 +267,9 @@ contract Match is IMatch {
     );
     if (tokenToSell == address(0) || tokenToBuy == address(0)) {
       revert AddressZero();
+    }
+    if (tokenToSell == tokenToBuy) {
+      revert SameToken();
     }
     if (amountToBuy == 0 || amountToSell == 0) {
       revert NoAmount();

@@ -4,29 +4,33 @@ import abiErc20 from "../../constants/erc20.json";
 import nativeName from "../../constants/nativeName";
 import contracts from "../../generated/deployedContracts";
 import { ChooseToken } from "./ChooseToken";
-import { BigNumber, utils } from "ethers";
+import Info from "@mui/icons-material/Info";
+import { IconButton, Tooltip } from "@mui/material";
+import { BigNumber, ethers, utils } from "ethers";
 import { useContractWrite, useNetwork, usePrepareContractWrite, useSigner } from "wagmi";
 import { ArrowSmallRightIcon } from "@heroicons/react/24/outline";
 import { useScaffoldContractWrite } from "~~/hooks/scaffold-eth";
 import { ERC20, ERC20__factory } from "~~/typechain-types";
-import { MatchContract } from "~~/typechain-types/Match.sol";
-import { MatchContract__factory } from "~~/typechain-types/factories/Match.sol";
+import { Match } from "~~/typechain-types/contracts/Match";
+import { Match__factory } from "~~/typechain-types/factories/contracts/Match__factory";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 
 export const CreateOrder = () => {
   const [actions, setActions] = useState([]);
   const [allowance, setAllowance] = useState(BigNumber.from("0"));
   const [needApprove, setNeedApprove] = useState(false);
-  const [matchContract, setMatchContract] = useState<MatchContract | undefined>();
+  const [matchContract, setMatchContract] = useState<Match | undefined>();
   const [erc20Contract, setErc20Contract] = useState<ERC20 | undefined>();
-  const [minReward, setMinReward] = useState(BigNumber.from("0"));
-  const [reward, setReward] = useState(BigNumber.from("0"));
-  const [coin, setCoin] = useState("Ethereum");
+  const [minReward, setMinReward] = useState(ethers.utils.parseEther("10"));
+  const [reward, setReward] = useState(10);
+  const [coin, setCoin] = useState("Fantom");
   const [matchAddress, setMatchAddress] = useState("");
-  const [selectedToken1, setSelectedToken1] = useState();
-  const [selectedToken2, setSelectedToken2] = useState();
+  const [selectedToken1, setSelectedToken1] = useState("0x0000000000000000000000000000000000000001");
+  const [selectedToken2, setSelectedToken2] = useState("0x0000000000000000000000000000000000000001");
   const [amountToken1, setAmountToken1] = useState(0);
   const [amountToken2, setAmountToken2] = useState(0);
+  const [isSending, setIsSending] = useState(false);
+  const [errorSending, setErrorSending] = useState("");
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -35,12 +39,12 @@ export const CreateOrder = () => {
   const { data: signer } = useSigner();
 
   useEffect(() => {
-    const chainId = chain?.id || 1;
+    const chainId = chain?.id || 250;
     const coinInfo = nativeName.find(x => x.chainId == chainId);
     if (coinInfo) {
       setCoin(coinInfo.name);
     } else {
-      setCoin("Ethereum");
+      setCoin("Fantom");
     }
 
     const deployedContracts = contracts as GenericContractsDeclaration | null;
@@ -50,7 +54,7 @@ export const CreateOrder = () => {
     setMatchAddress(mAddress || "");
 
     if (signer) {
-      const matchCont = MatchContract__factory.connect(matchAddress, signer);
+      const matchCont = Match__factory.connect(matchAddress, signer);
       setMatchContract(matchCont);
       getDatas();
     }
@@ -87,6 +91,52 @@ export const CreateOrder = () => {
     },
   });
 
+  const createOrder = async () => {
+    try {
+      setIsSending(true);
+      setErrorSending("");
+      if (matchContract && selectedToken1 && selectedToken2 && amountToken1 && amountToken2 && reward) {
+        const token1Dec = await getDecimal(selectedToken1);
+        const token2Dec = await getDecimal(selectedToken2);
+        const amount1 = BigNumber.from(amountToken1.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token1Dec)));
+        const amount2 = BigNumber.from(amountToken2.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token2Dec)));
+        const reward1 = ethers.utils.parseEther(reward.toString());
+        const deposit = await matchContract.getActionDeposit(selectedToken1, amount1);
+        const addOrder = await matchContract.getActionAddOrder(
+          selectedToken1,
+          selectedToken2,
+          reward1,
+          amount1,
+          amount2,
+        );
+        let totalAmount = reward1;
+        if (selectedToken1 === nativeAddress) {
+          totalAmount = totalAmount.add(amount1);
+        }
+        const execute = await matchContract.execute([deposit, addOrder], { value: totalAmount });
+        await execute.wait();
+      } else {
+        setErrorSending("Connect your wallet, complete token to sell/to buy and reward and try another time please.");
+      }
+    } catch (error: any) {
+      console.log(error);
+      setErrorSending(error?.data?.message || error?.message || "Unknow error");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const getDecimal = async (token: string) => {
+    if (token === nativeAddress) {
+      return 18;
+    }
+    if (signer) {
+      const contract = ERC20__factory.connect(token, signer);
+      return await contract.decimals();
+    }
+    throw "Unknow decimal";
+  };
+
   const getDatas = async () => {
     if (matchContract) {
       const rewardMin = await matchContract.minReward();
@@ -95,13 +145,18 @@ export const CreateOrder = () => {
   };
 
   const getAllowance = async () => {
-    if (signer && erc20Contract) {
+    if (selectedToken1 == nativeAddress) {
+      setNeedApprove(false);
+      return;
+    }
+    if (signer && erc20Contract && selectedToken1) {
       const user = await signer.getAddress();
       const amount = await erc20Contract.allowance(user, matchAddress);
       setAllowance(amount);
-      const amount1 = utils.parseEther(amountToken1.toString());
+      const token1Dec = await getDecimal(selectedToken1);
+      const amount1 = BigNumber.from(amountToken1.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token1Dec)));
       if (amountToken1 && amount.lt(amount1)) {
-        setNeedApprove(selectedToken1 !== nativeAddress);
+        setNeedApprove(true);
       } else {
         setNeedApprove(false);
       }
@@ -109,7 +164,7 @@ export const CreateOrder = () => {
   };
 
   const textReward = () => {
-    return `Rewards for the matcher (min ${utils.formatEther(minReward)} ${coin})`;
+    return `Rewards (min ${utils.formatEther(minReward)} ${coin})`;
   };
 
   return (
@@ -135,12 +190,19 @@ export const CreateOrder = () => {
             setAmountToken={setAmountToken2}
           ></ChooseToken>
           <div className="mt-8 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-5">
+            <label className="font-bai-jamjuree text-lg sm:text-2xl">Reward</label>
             <input
               type="text"
               placeholder={textReward()}
               className="input font-bai-jamjuree w-80 px-5 border border-primary text-lg sm:text-s"
               onChange={e => setReward(e.target.value)}
             />
+
+            <Tooltip title="Reward for the bot that matches your order (10% for the platform, 90% for the bot)">
+              <IconButton>
+                <Info />
+              </IconButton>
+            </Tooltip>
             {needApprove && (
               <div className="flex rounded-full border border-primary p-1 flex-shrink-0">
                 <button
@@ -159,10 +221,21 @@ export const CreateOrder = () => {
               </div>
             )}
           </div>
-
-          <div className="mt-4 flex gap-2 items-start">
-            <span className="text-sm leading-tight">Price:</span>
-            <div className="badge badge-warning">0.01 ETH + Gas</div>
+          <div className="flex flex-col rounded-full p-1 flex-shrink-0 items-start">
+            <button
+              className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                isSending ? "loading" : ""
+              }`}
+              disabled={isSending}
+              onClick={() => createOrder()}
+            >
+              {!isSending && (
+                <>
+                  Create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                </>
+              )}
+            </button>
+            {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
           </div>
         </div>
       </div>
