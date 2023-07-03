@@ -18,7 +18,6 @@ export const ShowOrders = () => {
   const [orders, setOrders] = useState<AddOrderEvent[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [errorSending, setErrorSending] = useState("");
-  const [refresh, setRefresh] = useState(0);
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -29,11 +28,14 @@ export const ShowOrders = () => {
   useEffect(() => {
     // update data every 10 seconds
     const interval = setInterval(() => {
-      setRefresh(refresh + 1);
+      if (matchContract) {
+        console.log("getdata");
+        getDatas(matchContract);
+      }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [matchContract]);
 
   useEffect(() => {
     const chainId = chain?.id || 250;
@@ -48,13 +50,12 @@ export const ShowOrders = () => {
     console.log("chainId", chainId);
     const chainMetaData = deployedContracts?.[chainId]?.[0];
     const mAddress = chainMetaData?.contracts["Match"]?.address;
-
     if (signer && mAddress && !isSending) {
       const matchCont = Match__factory.connect(mAddress, signer);
       setMatchContract(matchCont);
       getDatas(matchCont);
     }
-  }, [chain, signer, isSending, refresh]);
+  }, [chain, signer, isSending]);
 
   const getDatas = async (matchCont: Match) => {
     if (matchCont && signer) {
@@ -82,7 +83,7 @@ export const ShowOrders = () => {
 
   const getCompleted = (amountTotal: BigNumber, amountRest: BigNumber): string => {
     const rest = amountTotal.sub(amountRest);
-    return `${rest.mul(rest).div(amountTotal).mul(100)} %`;
+    return `${rest.div(amountTotal).mul(100)} %`;
   };
 
   const getTokenInfo = (amount: BigNumber, tokenAddress: string): string => {

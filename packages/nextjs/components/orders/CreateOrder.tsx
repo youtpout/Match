@@ -104,7 +104,88 @@ export const CreateOrder = () => {
         const execute = await matchContract.execute([deposit, addOrder], { value: totalAmount });
         await execute.wait();
       } else {
-        setErrorSending("Connect your wallet, complete token to sell/to buy and reward and try another time please.");
+        setErrorSending(
+          "Connect your wallet, complete token (amount) to sell/to buy and reward and try another time please.",
+        );
+      }
+    } catch (error: any) {
+      console.log(error);
+      if (error?.error?.data?.data && matchContract) {
+        try {
+          const decodedError = matchContract.interface.parseError(error.error.data.data);
+          setErrorSending(`Transaction will failed: ${decodedError?.name}`);
+        } catch (e2) {
+          setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+        }
+      } else {
+        setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const createSimpleOrder = async () => {
+    try {
+      setIsSending(true);
+      setErrorSending("");
+      if (matchContract && selectedToken1 && selectedToken2 && amountToken1 && amountToken2 && reward) {
+        const token1Dec = await getDecimal(selectedToken1);
+        const token2Dec = await getDecimal(selectedToken2);
+        const amount1 = BigNumber.from(amountToken1.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token1Dec)));
+        const amount2 = BigNumber.from(amountToken2.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token2Dec)));
+        const reward1 = ethers.utils.parseEther(reward.toString());
+        const addOrder = await matchContract.getActionAddOrder(
+          selectedToken1,
+          selectedToken2,
+          reward1,
+          amount1,
+          amount2,
+        );
+        let totalAmount = reward1;
+        if (selectedToken1 === nativeAddress) {
+          totalAmount = totalAmount.add(amount1);
+        }
+        const execute = await matchContract.execute([addOrder], { value: totalAmount });
+        await execute.wait();
+      } else {
+        setErrorSending(
+          "Connect your wallet, complete token (amount) to sell/to buy and reward and try another time please.",
+        );
+      }
+    } catch (error: any) {
+      console.log(error);
+      if (error?.error?.data?.data && matchContract) {
+        try {
+          const decodedError = matchContract.interface.parseError(error.error.data.data);
+          setErrorSending(`Transaction will failed: ${decodedError?.name}`);
+        } catch (e2) {
+          setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+        }
+      } else {
+        setErrorSending(error?.error?.data?.message || error?.message || "Unknow error");
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const createDeposit = async () => {
+    try {
+      setIsSending(true);
+      setErrorSending("");
+      if (matchContract && selectedToken1 && amountToken1) {
+        const token1Dec = await getDecimal(selectedToken1);
+        const amount1 = BigNumber.from(amountToken1.toString()).mul(BigNumber.from(10).pow(BigNumber.from(token1Dec)));
+        const deposit = await matchContract.getActionDeposit(selectedToken1, amount1);
+        let totalAmount = BigNumber.from("0");
+        if (selectedToken1 === nativeAddress) {
+          totalAmount = totalAmount.add(amount1);
+        }
+        const execute = await matchContract.execute([deposit], { value: totalAmount });
+        await execute.wait();
+      } else {
+        setErrorSending("Connect your wallet, complete token to sell (amount) and try another time please.");
       }
     } catch (error: any) {
       console.log(error);
@@ -196,6 +277,21 @@ export const CreateOrder = () => {
                 {error && <div>An error occurred preparing the transaction: {error.message}</div>}
               </div>
             )}
+            <div className="flex ml-8 mt-8 rounded-full border border-primary p-1 flex-shrink-0">
+              <button
+                className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                  isSending ? "loading" : ""
+                }`}
+                disabled={isSending}
+                onClick={() => createDeposit()}
+              >
+                {!isSending && (
+                  <>
+                    Deposit <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <ChooseToken
             sell={false}
@@ -210,6 +306,7 @@ export const CreateOrder = () => {
             <input
               type="text"
               placeholder={textReward()}
+              defaultValue={reward}
               className="input font-bai-jamjuree w-80 px-5 border border-primary text-lg sm:text-s"
               onChange={e => setReward(e.target.value)}
             />
@@ -220,21 +317,43 @@ export const CreateOrder = () => {
               </IconButton>
             </Tooltip>
           </div>
-          <div className="flex flex-col rounded-full p-1 flex-shrink-0 items-start">
-            <button
-              className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
-                isSending ? "loading" : ""
-              }`}
-              disabled={isSending}
-              onClick={() => createOrder()}
-            >
-              {!isSending && (
-                <>
-                  Create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
-                </>
-              )}
-            </button>
-            {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
+          <div className="mt-8 ">
+            <div className="flex flex-col rounded-full p-1 flex-shrink-0 items-start">
+              <div className="flex">
+                <div className="flex rounded-full border border-primary p-1 flex-shrink-0">
+                  <button
+                    className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                      isSending ? "loading" : ""
+                    }`}
+                    disabled={isSending}
+                    onClick={() => createOrder()}
+                  >
+                    {!isSending && (
+                      <>
+                        Deposit and create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex ml-8 rounded-full border border-primary p-1 flex-shrink-0">
+                  <button
+                    className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                      isSending ? "loading" : ""
+                    }`}
+                    disabled={isSending}
+                    onClick={() => createSimpleOrder()}
+                  >
+                    {!isSending && (
+                      <>
+                        Create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+              {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
+            </div>
           </div>
         </div>
       </div>
