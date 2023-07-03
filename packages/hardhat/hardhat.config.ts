@@ -18,21 +18,42 @@ const etherscanApiKey = process.env.ETHERSCAN_API_KEY || "DNXJA8RX2Q3VZ4URQIWP7Z
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.17",
-    settings: {
-      optimizer: {
-        enabled: true,
-        // https://docs.soliditylang.org/en/latest/using-the-compiler.html#optimizer-options
-        runs: 200,
+    compilers: [
+      {
+        version: "0.8.17",
+        settings: {
+          optimizer: {
+            enabled: true,
+            // https://docs.soliditylang.org/en/latest/using-the-compiler.html#optimizer-options
+            runs: 200,
+          },
+          viaIR: true,
+          metadata: {
+            // do not include the metadata hash, since this is machine dependent
+            // and we want all generated code to be deterministic
+            // https://docs.soliditylang.org/en/v0.8.17/metadata.html
+            bytecodeHash: "none",
+          },
+        },
       },
-      viaIR: true,
-      metadata: {
-        // do not include the metadata hash, since this is machine dependent
-        // and we want all generated code to be deterministic
-        // https://docs.soliditylang.org/en/v0.8.17/metadata.html
-        bytecodeHash: "none",
+      {
+        version: "0.6.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            // https://docs.soliditylang.org/en/latest/using-the-compiler.html#optimizer-options
+            runs: 200,
+          },
+          viaIR: true,
+          metadata: {
+            // do not include the metadata hash, since this is machine dependent
+            // and we want all generated code to be deterministic
+            // https://docs.soliditylang.org/en/v0.8.17/metadata.html
+            bytecodeHash: "none",
+          },
+        },
       },
-    },
+    ],
   },
   defaultNetwork: "localhost",
   namedAccounts: {
