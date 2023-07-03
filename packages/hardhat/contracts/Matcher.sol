@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
+// Import this file to use console.log
+import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Callee.sol";
@@ -69,9 +71,9 @@ contract Matcher is IUniswapV2Callee, Ownable {
     MatchLibrary.Order memory order = IMatch(matchh).getOrder(tokenToSell, tokenToBuy, indexOrder);
     uint256 buyAmount = order.amountToBuyRest;
     uint256 amountInMax = (order.amountToBuyRest * order.amountToSell) / order.amountToBuy;
-
+    console.log("buyAmount %s", buyAmount);
     uint256[] memory amounts = IUniswapV2Router02(router).getAmountsOut(amountInMax, paths);
-
+    console.log("amounts %s %s", amounts[0], amounts[1]);
     require(amounts[amounts.length - 1] >= buyAmount, "EXCESSIVE_OUTPUT_AMOUNT");
 
     address pair1 = IUniswapV2Factory(factory).getPair(paths[0], paths[1]);
@@ -97,10 +99,12 @@ contract Matcher is IUniswapV2Callee, Ownable {
       ? (uint256(0), amounts[1])
       : (amounts[1], uint256(0));
 
+    console.log("call swap pair %s first %s second %s", pair1, firstAmount, secondAmount);
     IUniswapV2Pair(pair1).swap(firstAmount, secondAmount, address(this), data);
   }
 
   function uniswapV2Call(address, uint256, uint256, bytes memory data) public {
+    console.log("flashloan");
     MatchInfo memory result = abi.decode(data, (MatchInfo));
 
     if (result.pair2 != address(0) && result.pair1 == msg.sender) {
@@ -122,6 +126,7 @@ contract Matcher is IUniswapV2Callee, Ownable {
       } else {
         IERC20(result.tokenToBuy).approve(matchh, type(uint256).max);
       }
+      console.log("create order %s", amountDeposit);
       uint256 indexOrderB = IMatch(matchh).countOrders(address(result.tokenToBuy), address(result.tokenToSell));
       MatchLibrary.Action[] memory actions = new MatchLibrary.Action[](4);
       actions[0] = IMatch(matchh).getActionDeposit(result.tokenToBuy, amountDeposit);
@@ -139,9 +144,9 @@ contract Matcher is IUniswapV2Callee, Ownable {
         indexOrderB
       );
       actions[3] = IMatch(matchh).getActionWithdraw(address(result.tokenToSell), amountOut);
-
+      console.log("before execute price %s contract balance %s", price, gasleft(), address(this).balance);
       IMatch(matchh).execute{value: price}(actions);
-
+      console.log("order created balance %s", IERC20(result.paths[0]).balanceOf(address(this)));
       if (firstPath == weth) {
         IWETH(firstPath).deposit{value: amountOut}();
       }
