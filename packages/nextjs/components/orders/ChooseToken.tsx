@@ -28,7 +28,7 @@ export const ChooseToken = ({ sell, selectedToken, setSelectedToken, list, amoun
         onChange={e => setAmountToken(e.target.value)}
       />
       <select
-        className="input font-bai-jamjuree w-96 px-5 border border-primary text-lg sm:text-2xl"
+        className="input font-bai-jamjuree w-40 sm:w-96 px-5 border border-primary text-lg sm:text-2xl"
         value={selectedToken?.name}
         onChange={e => setSelectedToken(e.target.value)}
       >

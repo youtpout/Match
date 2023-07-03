@@ -4,6 +4,7 @@ import nativeName from "../../constants/nativeName";
 import contracts from "../../generated/deployedContracts";
 import { OrderStatus } from "./OrderStatus";
 import CancelIcon from "@mui/icons-material/Cancel";
+import { Alert, Snackbar } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { BigNumber, ethers } from "ethers";
 import { useNetwork, useSigner } from "wagmi";
@@ -18,6 +19,7 @@ export const ShowOrders = () => {
   const [orders, setOrders] = useState<AddOrderEvent[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [errorSending, setErrorSending] = useState("");
+  const [open, setOpen] = useState(false);
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -56,6 +58,14 @@ export const ShowOrders = () => {
       getDatas(matchCont);
     }
   }, [chain, signer, isSending]);
+
+  const handleClose = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setOpen(false);
+  };
 
   const getDatas = async (matchCont: Match) => {
     if (matchCont && signer) {
@@ -119,9 +129,11 @@ export const ShowOrders = () => {
         await execute.wait();
       } else {
         setErrorSending("Connect your wallet.");
+        setOpen(true);
       }
     } catch (error: any) {
       console.log(error);
+      setOpen(true);
       if (error?.error?.data?.data && matchContract) {
         try {
           const decodedError = matchContract.interface.parseError(error.error.data.data);
@@ -139,10 +151,14 @@ export const ShowOrders = () => {
 
   return (
     <div className="flex bg-base-300 relative pb-10">
+      <Snackbar open={open} autoHideDuration={6000} onClose={handleClose}>
+        <Alert onClose={handleClose} severity="error" sx={{ width: "100%" }}>
+          {errorSending}
+        </Alert>
+      </Snackbar>
       <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
           <span className="text-5xl">My orders</span>
-          {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
           <table className="mt-10">
             <thead>
               <tr>
@@ -150,8 +166,8 @@ export const ShowOrders = () => {
                 <th>Status</th>
                 <th>Sell</th>
                 <th>Buy</th>
-                <th>Rest Reward</th>
-                <th>Completed</th>
+                <th>Reward</th>
+                <th>Filled</th>
               </tr>
             </thead>
             <tbody>

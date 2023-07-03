@@ -140,10 +140,10 @@ const Balance: NextPage = () => {
       <div className="flex bg-base-300 relative pb-10">
         <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
           <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
-            <div className="flex items-center">
+            <div className="flex items-center flex-wrap">
               <span className="text-5xl">My balances</span>
               <button
-                className={`btn btn-primary w-96 rounded-full ml-5 capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                className={`btn btn-primary w-96 rounded-full ml-5 mt-5 capitalize font-normal font-white w-40 sm:w-48 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
                   isSending ? "loading" : ""
                 }`}
                 disabled={isSending}
@@ -160,7 +160,7 @@ const Balance: NextPage = () => {
             {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
             <ul className="mt-10">
               {balances.map((balance: TokenBalance, index: number) => (
-                <li key={index} className="flex justify-between h-16 w-96 items-center p-3 text-m">
+                <li key={index} className="flex justify-between h-16 sm: w-48w-96 items-center p-3 text-m">
                   <div className="flex items-center">
                     <ScaleIcon className="h-4 w-4" />
                     <span className="ml-5">
@@ -169,7 +169,7 @@ const Balance: NextPage = () => {
                   </div>
                   {balance.amount.gt(0) && (
                     <button
-                      className={`btn btn-primary rounded-full ml-5 capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                      className={`btn btn-primary rounded-full ml-5 capitalize font-normal font-white w-32 sm:w-48 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
                         isSending ? "loading" : ""
                       }`}
                       disabled={isSending}

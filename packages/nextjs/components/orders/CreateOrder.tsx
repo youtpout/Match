@@ -246,12 +246,12 @@ export const CreateOrder = () => {
   };
 
   return (
-    <div className="flex bg-base-300 relative pb-10">
+    <div className="flex bg-base-300 relative pb-2">
       <div className="flex flex-col w-full mx-5 sm:mx-8 2xl:mx-20">
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
           <span className="text-5xl">Create order</span>
 
-          <div className="flex items-center">
+          <div className="flex items-center flex-wrap">
             <ChooseToken
               sell={true}
               selectedToken={selectedToken1}
@@ -307,7 +307,7 @@ export const CreateOrder = () => {
               type="text"
               placeholder={textReward()}
               defaultValue={reward}
-              className="input font-bai-jamjuree w-80 px-5 border border-primary text-lg sm:text-s"
+              className="input font-bai-jamjuree w-40 sm:w-80 px-5 border border-primary text-lg sm:text-s"
               onChange={e => setReward(e.target.value)}
             />
 
@@ -319,7 +319,7 @@ export const CreateOrder = () => {
           </div>
           <div className="mt-8 ">
             <div className="flex flex-col rounded-full p-1 flex-shrink-0 items-start">
-              <div className="flex">
+              <div className="flex flex-wrap">
                 <div className="flex rounded-full border border-primary p-1 flex-shrink-0">
                   <button
                     className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${

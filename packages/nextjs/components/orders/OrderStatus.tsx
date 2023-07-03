@@ -4,13 +4,29 @@ export function OrderStatus({ status }) {
   const getStatus = () => {
     switch (status) {
       case 1:
-        return "Active";
+        return (
+          <span className="tooltip" data-tip="Active">
+            🔵
+          </span>
+        );
       case 2:
-        return "Canceled";
+        return (
+          <span className="tooltip" data-tip="Canceled">
+            🔴
+          </span>
+        );
       case 3:
-        return "Sold";
+        return (
+          <span className="tooltip" data-tip="Sold">
+            🟢
+          </span>
+        );
       default:
-        return "None";
+        return (
+          <span className="tooltip" data-tip="Unknow">
+            🟤
+          </span>
+        );
     }
   };
 
