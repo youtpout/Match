@@ -21,22 +21,41 @@ library MatchLibrary {
     Sold
   }
 
+  enum OrderType {
+    None,
+    LimitOrder,
+    StopLoose,
+    TakeProfit,
+    TraillingComma,
+    AllOrNone
+  }
+
   struct Order {
     OrderStatus status;
     address trader;
-    uint88 reward;
-    uint128 amountToSell;
-    uint128 amountToBuy;
-    uint128 amountToSellRest;
-    uint128 amountToBuyRest;
+    uint88 reward;    
+    OrderType orderType;
+    bool dependantOrder;
+    uint16 trailing;
+    uint112 amountToSell;
+    uint112 amountToBuy;
+    uint32 blockTimestamp;
+    uint112 amountToSellRest;
+    uint112 amountToBuyRest;
   }
 
-  struct Action{
+  struct DependantOrder {
+    address tokenToSell;
+    address tokenToBuy;
+    uint256 index;
+  }
+
+  struct Action {
     ActionType actionType;
     bytes data;
   }
 
-  struct DepositData{
+  struct DepositData {
     address token;
     uint256 amount;
   }

@@ -21,6 +21,8 @@ contract Match is IMatch {
   /// @dev first address is the token to sell, second address is the token to buy, order is the order information for thes tokens
   mapping(address => mapping(address => MatchLibrary.Order[])) public orders;
 
+  mapping(address => mapping(address => mapping(uint256 => MatchLibrary.DependantOrder[]))) public dependantOrders;
+
   event Deposit(address indexed user, address indexed token, uint256 desiredAmount, uint256 depositedAmount);
   event AddOrder(
     address indexed user,
@@ -200,8 +202,8 @@ contract Match is IMatch {
     address tokenToSell,
     address tokenToBuy,
     uint88 reward,
-    uint128 amountToSell,
-    uint128 amountToBuy
+    uint112 amountToSell,
+    uint112 amountToBuy
   ) external pure returns (MatchLibrary.Action memory action) {
     bytes memory data = abi.encode(tokenToSell, tokenToBuy, reward, amountToSell, amountToBuy);
     action = MatchLibrary.Action(MatchLibrary.ActionType.AddOrder, data);
@@ -261,9 +263,9 @@ contract Match is IMatch {
   }
 
   function _addOrder(MatchLibrary.Action memory action) private returns (uint256 removeAmount) {
-    (address tokenToSell, address tokenToBuy, uint88 reward, uint128 amountToSell, uint128 amountToBuy) = abi.decode(
+    (address tokenToSell, address tokenToBuy, uint88 reward, uint112 amountToSell, uint112 amountToBuy) = abi.decode(
       action.data,
-      (address, address, uint88, uint128, uint128)
+      (address, address, uint88, uint112, uint112)
     );
     if (tokenToSell == address(0) || tokenToBuy == address(0)) {
       revert AddressZero();
@@ -290,8 +292,12 @@ contract Match is IMatch {
       MatchLibrary.OrderStatus.Active,
       msg.sender,
       rewardToBot,
+      MatchLibrary.OrderType.LimitOrder,
+      false,
+      0,
       amountToSell,
       amountToBuy,
+      uint32(block.timestamp),
       amountToSell,
       amountToBuy
     );
@@ -329,17 +335,17 @@ contract Match is IMatch {
       revert PriceTooHigh();
     }
 
-    uint128 amountTransfered = orderA.amountToBuyRest;
+    uint112 amountTransfered = orderA.amountToBuyRest;
     if (orderA.amountToBuyRest > orderB.amountToSellRest) {
       amountTransfered = orderB.amountToSellRest;
     }
 
     // we sold as order B price
     uint256 sold = (amountTransfered * orderB.amountToBuy) / orderB.amountToSell;
-    if (sold > type(uint128).max) {
+    if (sold > type(uint112).max) {
       revert OverflowPrice();
     }
-    uint128 amountSoldTransfered = uint128(sold);
+    uint112 amountSoldTransfered = uint112(sold);
 
     if (usersBalances[traderB][tokenToBuy] < amountTransfered) {
       revert TraderBNotEnoughToken();

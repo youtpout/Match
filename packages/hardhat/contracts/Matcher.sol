@@ -19,8 +19,8 @@ contract Matcher is IUniswapV2Callee, Ownable {
     address tokenToSell;
     address tokenToBuy;
     uint256 indexOrder;
-    uint128 amountToSell;
-    uint128 amountToBuy;
+    uint112 amountToSell;
+    uint112 amountToBuy;
     address pair1;
     address pair2;
     uint256[] amounts;
@@ -134,8 +134,8 @@ contract Matcher is IUniswapV2Callee, Ownable {
         address(result.tokenToBuy),
         address(result.tokenToSell),
         reward,
-        uint128(result.amountToBuy),
-        uint128(result.amountToSell)
+        uint112(result.amountToBuy),
+        uint112(result.amountToSell)
       );
       actions[2] = IMatch(matchh).getActionMatch(
         address(result.tokenToSell),

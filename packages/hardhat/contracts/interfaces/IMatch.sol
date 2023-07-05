@@ -31,8 +31,8 @@ interface IMatch {
     address tokenToSell,
     address tokenToBuy,
     uint88 reward,
-    uint128 amountToSell,
-    uint128 amountToBuy
+    uint112 amountToSell,
+    uint112 amountToBuy
   ) external pure returns (MatchLibrary.Action memory action);
 
   function getActionMatch(
