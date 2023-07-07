@@ -5,4 +5,5 @@ export * as erc20Sol from "./ERC20.sol";
 export * as interfaces from "./interfaces";
 export * as libraries from "./libraries";
 export { Match__factory } from "./Match__factory";
+export { Matcher__factory } from "./Matcher__factory";
 export { YourContract__factory } from "./YourContract__factory";

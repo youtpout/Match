@@ -8,4 +8,5 @@ export type { interfaces };
 import type * as libraries from "./libraries";
 export type { libraries };
 export type { Match } from "./Match";
+export type { Matcher } from "./Matcher";
 export type { YourContract } from "./YourContract";

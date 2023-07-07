@@ -3,9 +3,10 @@ import addresses from "../../constants/addresses";
 import abiErc20 from "../../constants/erc20.json";
 import nativeName from "../../constants/nativeName";
 import contracts from "../../generated/deployedContracts";
+import { Price } from "../Price";
 import { ChooseToken } from "./ChooseToken";
 import Info from "@mui/icons-material/Info";
-import { IconButton, Tooltip } from "@mui/material";
+import { IconButton, Switch, Tooltip } from "@mui/material";
 import { BigNumber, ethers, utils } from "ethers";
 import { useContractWrite, useNetwork, usePrepareContractWrite, useSigner } from "wagmi";
 import { ArrowSmallRightIcon } from "@heroicons/react/24/outline";
@@ -29,6 +30,7 @@ export const CreateOrder = () => {
   const [amountToken2, setAmountToken2] = useState(0);
   const [isSending, setIsSending] = useState(false);
   const [errorSending, setErrorSending] = useState("");
+  const [expertMode, setExpertMode] = useState(false);
 
   const tokensAddresses = addresses.filter(x => x.contract == "erc20");
   const nativeAddress = "0x0000000000000000000000000000000000000001";
@@ -251,6 +253,17 @@ export const CreateOrder = () => {
         <div className="flex flex-col mt-6 px-7 py-8 bg-base-200 opacity-80 rounded-2xl shadow-lg border-2 border-primary">
           <span className="text-5xl">Create order</span>
 
+          <div className="flex items-center mt-2 ">
+            <label for="expert" className="text-xl cursor-pointer">
+              Expert mode
+            </label>
+            <Switch
+              id="expert"
+              checked={expertMode}
+              onChange={e => setExpertMode(e.target.checked)}
+              inputProps={{ "aria-label": "controlled" }}
+            />
+          </div>
           <div className="flex items-center flex-wrap">
             <ChooseToken
               sell={true}
@@ -277,21 +290,31 @@ export const CreateOrder = () => {
                 {error && <div>An error occurred preparing the transaction: {error.message}</div>}
               </div>
             )}
-            <div className="flex ml-8 mt-8 rounded-full border border-primary p-1 flex-shrink-0">
-              <button
-                className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
-                  isSending ? "loading" : ""
-                }`}
-                disabled={isSending}
-                onClick={() => createDeposit()}
-              >
-                {!isSending && (
-                  <>
-                    Deposit <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
-                  </>
-                )}
-              </button>
-            </div>
+            {expertMode && (
+              <div className="flex ml-8 mt-8 rounded-full border border-primary p-1 flex-shrink-0">
+                <button
+                  className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                    isSending ? "loading" : ""
+                  }`}
+                  disabled={isSending}
+                  onClick={() => createDeposit()}
+                >
+                  {!isSending && (
+                    <>
+                      Deposit <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex mt-8">
+            <Price
+              tokenToSell={selectedToken1}
+              tokenToBuy={selectedToken2}
+              amountToBuy={amountToken1}
+              amountToSell={amountToken2}
+            ></Price>
           </div>
           <ChooseToken
             sell={false}
@@ -330,27 +353,29 @@ export const CreateOrder = () => {
                   >
                     {!isSending && (
                       <>
-                        Deposit and create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex ml-8 rounded-full border border-primary p-1 flex-shrink-0">
-                  <button
-                    className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
-                      isSending ? "loading" : ""
-                    }`}
-                    disabled={isSending}
-                    onClick={() => createSimpleOrder()}
-                  >
-                    {!isSending && (
-                      <>
                         Create order <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
                       </>
                     )}
                   </button>
                 </div>
+
+                {expertMode && (
+                  <div className="flex ml-8 rounded-full border border-primary p-1 flex-shrink-0">
+                    <button
+                      className={`btn btn-primary rounded-full capitalize font-normal font-white w-42 flex items-center gap-1 hover:gap-2 transition-all tracking-widest ${
+                        isSending ? "loading" : ""
+                      }`}
+                      disabled={isSending}
+                      onClick={() => createSimpleOrder()}
+                    >
+                      {!isSending && (
+                        <>
+                          Create order without deposit <ArrowSmallRightIcon className="w-3 h-3 mt-0.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
               {errorSending && <div className="text-m p-1 text-red-600">Error : {errorSending}</div>}
             </div>
